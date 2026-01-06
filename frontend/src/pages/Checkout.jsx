@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { FiCheck, FiChevronRight, FiChevronLeft } from 'react-icons/fi';
+import { FiCheck, FiChevronRight, FiChevronLeft, FiPlus, FiX } from 'react-icons/fi';
 import {
   validateCheckout,
   calculateCheckout,
@@ -13,7 +13,7 @@ import {
   previousStep,
   resetCheckout,
 } from '../redux/slices/checkoutSlice';
-import { fetchAddresses } from '../redux/slices/userSlice';
+import { fetchAddresses, addAddress } from '../redux/slices/userSlice';
 import AddressManager from '../components/user/AddressManager';
 import styles from '../styles/Checkout.module.css';
 
@@ -35,6 +35,19 @@ const Checkout = () => {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [newAddress, setNewAddress] = useState({
+    label: '',
+    fullName: '',
+    phone: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: 'Pakistan',
+    isDefault: false,
+  });
 
   useEffect(() => {
     if (items.length === 0) {
@@ -66,10 +79,47 @@ const Checkout = () => {
     dispatch(previousStep());
   };
 
+  useEffect(() => {
+    if (!selectedAddressId && addresses.length) {
+      const fallback = addresses.find((addr) => addr.isDefault) || addresses[0];
+      handleAddressSelect(fallback._id);
+    }
+  }, [addresses, selectedAddressId]);
+
   const handleAddressSelect = (addressId) => {
     setSelectedAddressId(addressId);
     const address = addresses.find((addr) => addr._id === addressId);
     dispatch(setShippingAddress(address));
+  };
+
+  const handleNewAddressChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setNewAddress((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const handleNewAddressSubmit = async (e) => {
+    e.preventDefault();
+    const result = await dispatch(addAddress(newAddress));
+    if (addAddress.fulfilled.match(result)) {
+      const created = result.payload[result.payload.length - 1];
+      handleAddressSelect(created._id);
+      setShowAddressForm(false);
+      setNewAddress({
+        label: '',
+        fullName: '',
+        phone: '',
+        addressLine1: '',
+        addressLine2: '',
+        city: '',
+        state: '',
+        postalCode: '',
+        country: 'Pakistan',
+        isDefault: false,
+      });
+    }
   };
 
   const handleShippingMethodChange = (method) => {
@@ -106,7 +156,24 @@ const Checkout = () => {
       case 1:
         return (
           <div className={styles.stepContent}>
-            <h2>Select Shipping Address</h2>
+            <div className={styles.addressHeader}>
+              <h2>Select Shipping Address</h2>
+              <button
+                type="button"
+                className={styles.addAddressBtn}
+                onClick={() => setShowAddressForm((prev) => !prev)}
+              >
+                {showAddressForm ? (
+                  <>
+                    <FiX /> Cancel
+                  </>
+                ) : (
+                  <>
+                    <FiPlus /> Add New
+                  </>
+                )}
+              </button>
+            </div>
             {addresses.length === 0 ? (
               <div className={styles.noAddresses}>
                 <p>No saved addresses found</p>
@@ -114,28 +181,142 @@ const Checkout = () => {
               </div>
             ) : (
               <div className={styles.addressList}>
-                {addresses.map((address) => (
-                  <label key={address._id} className={styles.addressCard}>
-                    <input
-                      type="radio"
-                      name="address"
-                      checked={selectedAddressId === address._id}
-                      onChange={() => handleAddressSelect(address._id)}
-                    />
-                    <div className={styles.addressDetails}>
-                      {address.label && <strong>{address.label}</strong>}
-                      <p>{address.fullName}</p>
-                      <p>{address.addressLine1}</p>
-                      {address.addressLine2 && <p>{address.addressLine2}</p>}
-                      <p>
-                        {address.city}, {address.state} {address.postalCode}
-                      </p>
-                      <p>{address.phone}</p>
-                      {address.isDefault && <span className={styles.defaultBadge}>Default</span>}
-                    </div>
-                  </label>
-                ))}
+                {addresses.map((address) => {
+                  const isSelected = selectedAddressId === address._id;
+                  const showDefaultBadge = address.isDefault && !isSelected;
+                  return (
+                    <label
+                      key={address._id}
+                      className={`${styles.addressCard} ${isSelected ? styles.selectedCard : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="shippingAddress"
+                        checked={isSelected}
+                        onChange={() => handleAddressSelect(address._id)}
+                      />
+                      <div className={styles.addressDetails}>
+                        <p>
+                          <strong>{address.fullName}</strong>
+                        </p>
+                        <p>{address.addressLine1}</p>
+                        {address.addressLine2 && <p>{address.addressLine2}</p>}
+                        <p>
+                          {address.city}, {address.state} {address.postalCode}
+                        </p>
+                        <p>{address.phone}</p>
+                        <div className={styles.badgeRow}>
+                          {showDefaultBadge && <span className={styles.defaultBadge}>Default</span>}
+                          {isSelected && <span className={styles.selectedBadge}>Selected</span>}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
               </div>
+            )}
+            {showAddressForm && (
+              <form className={styles.addressForm} onSubmit={handleNewAddressSubmit}>
+                <div className={styles.formRow}>
+                  <div>
+                    <label>Label</label>
+                    <input
+                      type="text"
+                      name="label"
+                      value={newAddress.label}
+                      onChange={handleNewAddressChange}
+                      placeholder="Home / Office"
+                    />
+                  </div>
+                  <div>
+                    <label>Full Name</label>
+                    <input
+                      type="text"
+                      name="fullName"
+                      value={newAddress.fullName}
+                      onChange={handleNewAddressChange}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <div>
+                    <label>Phone</label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={newAddress.phone}
+                      onChange={handleNewAddressChange}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label>City</label>
+                    <input
+                      type="text"
+                      name="city"
+                      value={newAddress.city}
+                      onChange={handleNewAddressChange}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <div>
+                    <label>State</label>
+                    <input
+                      type="text"
+                      name="state"
+                      value={newAddress.state}
+                      onChange={handleNewAddressChange}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label>Postal Code</label>
+                    <input
+                      type="text"
+                      name="postalCode"
+                      value={newAddress.postalCode}
+                      onChange={handleNewAddressChange}
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label>Address Line 1</label>
+                  <input
+                    type="text"
+                    name="addressLine1"
+                    value={newAddress.addressLine1}
+                    onChange={handleNewAddressChange}
+                    required
+                  />
+                </div>
+                <div>
+                  <label>Address Line 2</label>
+                  <input
+                    type="text"
+                    name="addressLine2"
+                    value={newAddress.addressLine2}
+                    onChange={handleNewAddressChange}
+                  />
+                </div>
+                <div className={styles.formActions}>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      name="isDefault"
+                      checked={newAddress.isDefault}
+                      onChange={handleNewAddressChange}
+                    />
+                    Make this my default address
+                  </label>
+                  <button type="submit" className={styles.saveAddressBtn}>
+                    Save Address
+                  </button>
+                </div>
+              </form>
             )}
           </div>
         );

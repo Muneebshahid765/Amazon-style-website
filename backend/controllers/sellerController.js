@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 import slugify from 'slugify';
+import streamifier from 'streamifier';
+import { cloudinary } from '../config/cloudinary.js';
 import Product from '../models/Product.js';
 import Order from '../models/Order.js';
 import Store from '../models/Store.js';
@@ -7,6 +9,49 @@ import Payout from '../models/Payout.js';
 import Review from '../models/Review.js';
 import Category from '../models/Category.js';
 import { sendEmail } from '../utils/sendEmail.js';
+
+const uploadProductImages = async (files = []) => {
+  if (!files.length || !cloudinary?.uploader) return [];
+
+  const uploadOptions = {
+    folder: 'novamart/products',
+    transformation: [
+      { width: 800, height: 800, crop: 'limit' },
+      { quality: 'auto', fetch_format: 'auto' },
+    ],
+  };
+
+  return Promise.all(
+    files.map(
+      (file) =>
+        new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+            if (error) reject(error);
+            else resolve({
+              public_id: result.public_id,
+              url: result.secure_url,
+              alt: file.originalname,
+            });
+          });
+
+          streamifier.createReadStream(file.buffer).pipe(uploadStream);
+        })
+    )
+  );
+};
+
+const parseExistingImages = (input) => {
+  if (input === undefined) return null;
+  if (typeof input === 'string') {
+    try {
+      const parsed = JSON.parse(input);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch (error) {
+      return null;
+    }
+  }
+  return Array.isArray(input) ? input : null;
+};
 
 export const getDashboardStats = async (req, res, next) => {
   try {
@@ -189,6 +234,34 @@ export const createProduct = async (req, res, next) => {
     await mapCategoryField('category');
     await mapCategoryField('subcategory');
 
+    if (productData.comparePrice !== undefined) {
+      productData.discountPrice =
+        productData.comparePrice === '' ? undefined : Number(productData.comparePrice);
+      delete productData.comparePrice;
+    }
+
+    if (productData.price !== undefined && productData.price !== '') {
+      productData.price = Number(productData.price);
+    }
+
+    if (productData.stock !== undefined && productData.stock !== '') {
+      productData.stock = Number(productData.stock);
+    }
+
+    if (productData.weight !== undefined && productData.weight !== '') {
+      productData.weight = Number(productData.weight);
+    }
+
+    const existingImages = parseExistingImages(productData.existingImages);
+    delete productData.existingImages;
+
+    if (req.files?.length) {
+      const uploads = await uploadProductImages(req.files);
+      productData.images = [...(existingImages || []), ...uploads];
+    } else if (existingImages) {
+      productData.images = existingImages;
+    }
+
     const store = await Store.findOne({ seller: req.user._id });
     if (store) productData.sellerInfo = store._id;
 
@@ -214,7 +287,49 @@ export const updateProduct = async (req, res, next) => {
       return res.status(404).json({ message: 'Product not found or access denied' });
     }
 
-    Object.assign(product, req.body);
+    const updatedData = { ...req.body };
+
+    if (updatedData.comparePrice !== undefined) {
+      updatedData.discountPrice =
+        updatedData.comparePrice === '' ? undefined : Number(updatedData.comparePrice);
+      delete updatedData.comparePrice;
+    }
+
+    if (updatedData.price !== undefined && updatedData.price !== '') {
+      updatedData.price = Number(updatedData.price);
+    }
+
+    if (updatedData.stock !== undefined && updatedData.stock !== '') {
+      updatedData.stock = Number(updatedData.stock);
+    }
+
+    if (updatedData.weight !== undefined && updatedData.weight !== '') {
+      updatedData.weight = Number(updatedData.weight);
+    }
+
+    const existingImages = parseExistingImages(updatedData.existingImages);
+    delete updatedData.existingImages;
+
+    if (req.files?.length) {
+      const uploads = await uploadProductImages(req.files);
+      updatedData.images = [...(existingImages || product.images || []), ...uploads];
+    } else if (existingImages) {
+      updatedData.images = existingImages;
+    }
+
+    const mapCategoryField = async (fieldName) => {
+      if (!updatedData[fieldName]) return;
+      const rawValue = updatedData[fieldName];
+      const isValidId = mongoose.Types.ObjectId.isValid(rawValue);
+      if (isValidId) return;
+
+      updatedData[fieldName] = await resolveCategoryValue(rawValue);
+    };
+
+    await mapCategoryField('category');
+    await mapCategoryField('subcategory');
+
+    Object.assign(product, updatedData);
     await product.save();
 
     res.json({ product });

@@ -1,18 +1,80 @@
-import { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import { createProduct } from '../../../redux/slices/sellerSlice';
+import { useEffect, useMemo, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  createProduct,
+  updateProduct,
+  fetchProductDetails,
+  clearSelectedProduct,
+} from '../../../redux/slices/sellerSlice';
 import { FiArrowLeft, FiUpload, FiX } from 'react-icons/fi';
 import styles from './AddProduct.module.css';
 
 const AddProduct = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditMode = Boolean(id);
+  const { currentProduct, detailsLoading } = useSelector((state) => state.seller);
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
   const [formData, setFormData] = useState({
-    title: '', description: '', price: '', comparePrice: '', sku: '', stock: '', category: '', brand: '', weight: '', dimensions: ''
+    title: '',
+    description: '',
+    price: '',
+    comparePrice: '',
+    sku: '',
+    stock: '',
+    category: '',
+    brand: '',
+    weight: '',
+    dimensions: '',
   });
+
+  useEffect(() => {
+    if (isEditMode) {
+      dispatch(fetchProductDetails(id));
+    } else {
+      dispatch(clearSelectedProduct());
+      setFormData({
+        title: '',
+        description: '',
+        price: '',
+        comparePrice: '',
+        sku: '',
+        stock: '',
+        category: '',
+        brand: '',
+        weight: '',
+        dimensions: '',
+      });
+      setExistingImages([]);
+      setImages([]);
+    }
+  }, [dispatch, id, isEditMode]);
+
+  useEffect(() => {
+    if (isEditMode && currentProduct && currentProduct._id === id) {
+      setFormData({
+        title: currentProduct.title || '',
+        description: currentProduct.description || '',
+        price: currentProduct.price ?? '',
+        comparePrice: currentProduct.discountPrice ?? '',
+        sku: currentProduct.sku || '',
+        stock: currentProduct.stock ?? '',
+        category:
+          currentProduct.category?.slug ||
+          currentProduct.category?.name ||
+          currentProduct.category?._id ||
+          '',
+        brand: currentProduct.brand || '',
+        weight: currentProduct.weight || '',
+        dimensions: currentProduct.dimensions || '',
+      });
+      setExistingImages((currentProduct.images || []).filter((img) => img && (img.url || img.preview)));
+    }
+  }, [currentProduct, id, isEditMode]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -31,14 +93,36 @@ const AddProduct = () => {
     setImages(images.filter((_, i) => i !== index));
   };
 
+  const removeExistingImage = (publicId) => {
+    setExistingImages(existingImages.filter((img) => img.public_id !== publicId));
+  };
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: '', label: 'Select category' },
+      { value: 'electronics', label: 'Electronics' },
+      { value: 'fashion', label: 'Fashion' },
+      { value: 'home', label: 'Home & Garden' },
+      { value: 'sports', label: 'Sports' },
+    ],
+    []
+  );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       const productData = new FormData();
       Object.keys(formData).forEach(key => productData.append(key, formData[key]));
+      if (existingImages.length) {
+        productData.append('existingImages', JSON.stringify(existingImages));
+      }
       images.forEach(img => productData.append('images', img.file));
-      await dispatch(createProduct(productData)).unwrap();
+      if (isEditMode) {
+        await dispatch(updateProduct({ id, data: productData })).unwrap();
+      } else {
+        await dispatch(createProduct(productData)).unwrap();
+      }
       navigate('/seller/products');
     } catch (error) {
       console.error('Failed to create product:', error);
@@ -46,10 +130,17 @@ const AddProduct = () => {
     setLoading(false);
   };
 
+  if (isEditMode && detailsLoading && !currentProduct) {
+    return <div className={styles.loading}>Loading product details...</div>;
+  }
+
   return (
     <div className={styles.container}>
       <button className={styles.backBtn} onClick={() => navigate('/seller/products')}><FiArrowLeft /> Back to Products</button>
-      <div className={styles.header}><h1>Add New Product</h1><p>Fill in the details to add a new product</p></div>
+      <div className={styles.header}>
+        <h1>{isEditMode ? 'Edit Product' : 'Add New Product'}</h1>
+        <p>{isEditMode ? 'Update your product details' : 'Fill in the details to add a new product'}</p>
+      </div>
 
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.grid}>
@@ -72,6 +163,18 @@ const AddProduct = () => {
                 <input type="file" id="images" multiple accept="image/*" onChange={handleImageUpload} className={styles.fileInput} />
                 <label htmlFor="images" className={styles.uploadLabel}><FiUpload /> Upload Images</label>
               </div>
+              {existingImages.length > 0 && (
+                <div className={styles.imagePreview}>
+                  {existingImages
+                    .filter((img) => img && (img.url || img.preview))
+                    .map((img) => (
+                      <div key={img.public_id || img.url} className={styles.previewItem}>
+                        <img src={img.url || img.preview} alt={img.alt || img.public_id || 'product image'} />
+                        <button type="button" onClick={() => removeExistingImage(img.public_id)} className={styles.removeBtn}><FiX /></button>
+                      </div>
+                    ))}
+                </div>
+              )}
               {images.length > 0 && (
                 <div className={styles.imagePreview}>
                   {images.map((img, index) => (
@@ -105,11 +208,11 @@ const AddProduct = () => {
               <div className={styles.formGroup}>
                 <label>Category</label>
                 <select name="category" value={formData.category} onChange={handleChange}>
-                  <option value="">Select category</option>
-                  <option value="electronics">Electronics</option>
-                  <option value="fashion">Fashion</option>
-                  <option value="home">Home & Garden</option>
-                  <option value="sports">Sports</option>
+                  {categoryOptions.map((option) => (
+                    <option key={option.value || 'placeholder'} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className={styles.formGroup}>
@@ -146,7 +249,9 @@ const AddProduct = () => {
 
         <div className={styles.actions}>
           <button type="button" onClick={() => navigate('/seller/products')} className={styles.cancelBtn}>Cancel</button>
-          <button type="submit" disabled={loading} className={styles.submitBtn}>{loading ? 'Creating...' : 'Create Product'}</button>
+          <button type="submit" disabled={loading} className={styles.submitBtn}>
+            {loading ? (isEditMode ? 'Updating...' : 'Creating...') : isEditMode ? 'Update Product' : 'Create Product'}
+          </button>
         </div>
       </form>
     </div>

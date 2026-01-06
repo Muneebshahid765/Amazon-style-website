@@ -1,8 +1,19 @@
 import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
 
+const getItemProductId = (item) => {
+  if (!item?.product) return null;
+  if (typeof item.product === 'string') return item.product;
+  if (item.product._id) return item.product._id.toString();
+  if (item.product.toString) return item.product.toString();
+  return null;
+};
+
 const findOrCreateCart = async (userId) => {
-  let cart = await Cart.findOne({ user: userId }).populate('items.product', 'name price discountPrice images slug stock');
+  let cart = await Cart.findOne({ user: userId }).populate(
+    'items.product',
+    'title price discountPrice images slug stock'
+  );
   if (!cart) {
     cart = await Cart.create({ user: userId, items: [] });
   }
@@ -25,9 +36,9 @@ const getCart = async (req, res, next) => {
     const formattedCart = {
       items: cart.items.map(item => ({
         productId: item.product._id,
-        name: item.product.name,
+        title: item.product.title || item.title,
         price: item.product.discountPrice || item.product.price,
-        image: item.product.images?.[0]?.url,
+        image: item.product.images?.[0]?.url || item.image,
         slug: item.product.slug,
         stock: item.product.stock,
         quantity: item.quantity,
@@ -55,7 +66,7 @@ const addToCart = async (req, res, next) => {
     }
 
     const cart = await findOrCreateCart(req.user._id);
-    const existingItem = cart.items.find((item) => item.product.toString() === productId);
+    const existingItem = cart.items.find((item) => getItemProductId(item) === productId);
 
     if (existingItem) {
       const newQuantity = existingItem.quantity + quantity;
@@ -65,23 +76,25 @@ const addToCart = async (req, res, next) => {
       existingItem.quantity = newQuantity;
       existingItem.price = product.discountPrice || product.price;
     } else {
-      cart.items.push({ 
-        product: productId, 
-        quantity, 
-        price: product.discountPrice || product.price 
+      cart.items.push({
+        product: productId,
+        quantity,
+        price: product.discountPrice || product.price,
+        title: product.title,
+        image: product.images?.[0]?.url,
       });
     }
 
     recalcCart(cart);
     await cart.save();
-    await cart.populate('items.product', 'name price discountPrice images slug stock');
+    await cart.populate('items.product', 'title price discountPrice images slug stock');
     
     const formattedCart = {
       items: cart.items.map(item => ({
         productId: item.product._id,
-        name: item.product.name,
+        title: item.product.title || item.title,
         price: item.product.discountPrice || item.product.price,
-        image: item.product.images?.[0]?.url,
+        image: item.product.images?.[0]?.url || item.image,
         slug: item.product.slug,
         stock: item.product.stock,
         quantity: item.quantity,
@@ -113,7 +126,7 @@ const updateCartItem = async (req, res, next) => {
     }
 
     const cart = await findOrCreateCart(req.user._id);
-    const item = cart.items.find((item) => item.product.toString() === productId);
+    const item = cart.items.find((item) => getItemProductId(item) === productId);
 
     if (!item) {
       return res.status(404).json({ message: 'Item not found in cart' });
@@ -124,14 +137,14 @@ const updateCartItem = async (req, res, next) => {
 
     recalcCart(cart);
     await cart.save();
-    await cart.populate('items.product', 'name price discountPrice images slug stock');
+    await cart.populate('items.product', 'title price discountPrice images slug stock');
     
     const formattedCart = {
       items: cart.items.map(item => ({
         productId: item.product._id,
-        name: item.product.name,
+        title: item.product.title || item.title,
         price: item.product.discountPrice || item.product.price,
-        image: item.product.images?.[0]?.url,
+        image: item.product.images?.[0]?.url || item.image,
         slug: item.product.slug,
         stock: item.product.stock,
         quantity: item.quantity,
@@ -148,7 +161,7 @@ const updateCartItem = async (req, res, next) => {
 const removeFromCart = async (req, res, next) => {
   try {
     const cart = await findOrCreateCart(req.user._id);
-    cart.items = cart.items.filter((item) => item.product.toString() !== req.params.productId);
+    cart.items = cart.items.filter((item) => getItemProductId(item) !== req.params.productId);
     recalcCart(cart);
     await cart.save();
     await cart.populate('items.product', 'name price discountPrice images slug stock');

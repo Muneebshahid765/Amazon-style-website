@@ -27,6 +27,8 @@ const productSchema = new Schema(
     trackInventory: { type: Boolean, default: true },
     images: [mediaSchema],
     video: { type: String },
+    weight: { type: Number, default: 0 },
+    dimensions: { type: String },
     category: { type: Schema.Types.ObjectId, ref: 'Category', required: true },
     subcategory: { type: Schema.Types.ObjectId, ref: 'Category' },
     brand: { type: String, trim: true },

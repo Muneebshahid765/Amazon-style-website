@@ -67,7 +67,7 @@ function App() {
         
         <Route path="/" element={<Layout><Home /></Layout>} />
         <Route path="/products" element={<Layout><ProductList /></Layout>} />
-        <Route path="/products/:id" element={<Layout><ProductDetail /></Layout>} />
+        <Route path="/products/:slug" element={<Layout><ProductDetail /></Layout>} />
         <Route path="/cart" element={<Layout><Cart /></Layout>} />
         <Route path="/checkout" element={<Layout><PrivateRoute><Checkout /></PrivateRoute></Layout>} />
         <Route path="/order-success/:orderId" element={<Layout><PrivateRoute><OrderSuccess /></PrivateRoute></Layout>} />
