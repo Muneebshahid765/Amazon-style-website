@@ -1,0 +1,12 @@
+.layoutShell {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.mainContent {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}

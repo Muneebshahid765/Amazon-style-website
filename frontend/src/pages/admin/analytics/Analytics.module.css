@@ -1,0 +1,32 @@
+.container { padding: 0; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; }
+.header h1 { font-size: 2rem; font-weight: 700; color: #1f2937; margin: 0 0 0.5rem 0; }
+.header p { color: #6b7280; margin: 0; }
+.periodSelect { padding: 0.75rem 1rem; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.95rem; }
+.chartSection { margin-bottom: 2rem; }
+.chartCard { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+.chartCard h3 { font-size: 1.125rem; font-weight: 600; color: #1f2937; margin: 0 0 1rem 0; }
+.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+.card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+.card h3 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.125rem; font-weight: 600; color: #1f2937; margin: 0 0 1.5rem 0; }
+.list { display: flex; flex-direction: column; gap: 1rem; }
+.listItem { display: flex; align-items: center; gap: 1rem; padding: 0.75rem; background: #f9fafb; border-radius: 8px; }
+.rank { width: 24px; height: 24px; background: #667eea; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; }
+.productImg { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; background: #e5e7eb; }
+.productInfo, .customerInfo { flex: 1; }
+.productName, .customerName { font-weight: 600; color: #1f2937; margin: 0; font-size: 0.875rem; }
+.productStats, .customerStats { font-size: 0.75rem; color: #6b7280; margin: 0; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+.categoryList { display: flex; flex-direction: column; gap: 1rem; }
+.categoryItem { display: flex; flex-direction: column; gap: 0.5rem; }
+.categoryInfo { display: flex; justify-content: space-between; }
+.categoryName { font-size: 0.875rem; color: #374151; }
+.categoryRevenue { font-size: 0.875rem; font-weight: 600; color: #1f2937; }
+.progressBar { height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
+.progress { height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 4px; }
+.growthList { display: flex; justify-content: space-between; align-items: flex-end; height: 150px; padding-top: 1rem; }
+.growthItem { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+.growthDate { font-size: 0.75rem; color: #6b7280; }
+.growthBar { width: 30px; background: linear-gradient(180deg, #667eea 0%, #764ba2 100%); border-radius: 4px 4px 0 0; min-height: 20px; }
+.growthCount { font-size: 0.75rem; font-weight: 600; color: #1f2937; }
+@media (max-width: 1024px) { .grid { grid-template-columns: 1fr; } }

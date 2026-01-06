@@ -1,0 +1,88 @@
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem clamp(1rem, 3vw, 4rem);
+  backdrop-filter: blur(16px);
+  background: rgba(1, 6, 23, 0.75);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.links {
+  display: flex;
+  gap: 1.25rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+.links a {
+  color: #cbd5f5;
+  transition: color 0.2s ease;
+}
+
+.links a.active,
+.links a:hover {
+  color: #61f4de;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.cartPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(15, 118, 110, 0.2);
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(45, 212, 191, 0.4);
+}
+
+.cartPill span {
+  background: #2dd4bf;
+  color: #011627;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
+
+.menuButton {
+  display: none;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 2.5rem;
+  background: transparent;
+  border: none;
+}
+
+.menuButton span {
+  height: 2px;
+  width: 100%;
+  background: #cbd5f5;
+  border-radius: 999px;
+}
+
+@media (max-width: 900px) {
+  .links {
+    display: none;
+  }
+
+  .menuButton {
+    display: inline-flex;
+  }
+}

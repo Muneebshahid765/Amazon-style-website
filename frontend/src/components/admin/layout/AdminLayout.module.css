@@ -1,0 +1,42 @@
+.adminShell {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  min-height: 100vh;
+  background: #f3f5ff;
+}
+
+.sidebarSpacer {
+  width: 280px;
+}
+
+.mainPane {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: linear-gradient(120deg, #f3f4ff 0%, #ffffff 30%, #f8f9ff 100%);
+  position: relative;
+}
+
+.contentArea {
+  flex: 1;
+  padding: 1.5rem clamp(1.5rem, 3vw, 2.5rem);
+  overflow: auto;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  border: none;
+  z-index: 40;
+}
+
+@media (max-width: 1024px) {
+  .adminShell {
+    grid-template-columns: 1fr;
+  }
+
+  .mainPane {
+    min-height: 100vh;
+  }
+}

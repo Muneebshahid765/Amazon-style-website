@@ -1,0 +1,15 @@
+.footer {
+  padding: 2rem clamp(1rem, 3vw, 4rem);
+  border-top: 1px solid rgba(100, 116, 139, 0.2);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  color: rgba(148, 163, 184, 0.8);
+}
+
+.footer a {
+  margin-left: 1rem;
+  color: inherit;
+  font-size: 0.9rem;
+}

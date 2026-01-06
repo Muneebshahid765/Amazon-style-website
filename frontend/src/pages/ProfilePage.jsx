@@ -1,0 +1,252 @@
+import { useState, useEffect, useRef } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { FiEdit2, FiCamera, FiTrash2, FiUser, FiMail, FiPhone, FiSave, FiX } from 'react-icons/fi';
+import {
+  fetchUserProfile,
+  updateUserProfile,
+  uploadAvatar,
+  deleteAvatar,
+} from '../redux/slices/userSlice';
+import styles from '../styles/ProfilePage.module.css';
+
+const ProfilePage = () => {
+  const dispatch = useDispatch();
+  const { profile, status } = useSelector((state) => state.user);
+  const [isEditing, setIsEditing] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+  });
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!profile) {
+      dispatch(fetchUserProfile());
+    }
+  }, [dispatch, profile]);
+
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        firstName: profile.firstName || '',
+        lastName: profile.lastName || '',
+        email: profile.email || '',
+        phone: profile.phone || '',
+      });
+    }
+  }, [profile]);
+
+  const handleInputChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const result = await dispatch(updateUserProfile(formData));
+    if (updateUserProfile.fulfilled.match(result)) {
+      setIsEditing(false);
+    }
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+
+      await dispatch(uploadAvatar(file));
+      setAvatarPreview(null);
+    }
+  };
+
+  const handleDeleteAvatar = async () => {
+    if (window.confirm('Are you sure you want to delete your avatar?')) {
+      await dispatch(deleteAvatar());
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    if (profile) {
+      setFormData({
+        firstName: profile.firstName || '',
+        lastName: profile.lastName || '',
+        email: profile.email || '',
+        phone: profile.phone || '',
+      });
+    }
+  };
+
+  if (status === 'loading' && !profile) {
+    return (
+      <div className={styles.loading}>
+        <div className={styles.spinner}></div>
+        <p>Loading profile...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.profileContainer}>
+      <div className={styles.profileCard}>
+        <div className={styles.avatarSection}>
+          <div className={styles.avatarWrapper}>
+            {avatarPreview ? (
+              <img src={avatarPreview} alt="Preview" className={styles.avatar} />
+            ) : profile?.avatar?.url ? (
+              <img src={profile.avatar.url} alt={profile.fullName} className={styles.avatar} />
+            ) : (
+              <div className={styles.avatarPlaceholder}>
+                <FiUser size={48} />
+              </div>
+            )}
+            <button
+              className={styles.avatarUploadBtn}
+              onClick={() => fileInputRef.current?.click()}
+              title="Change avatar"
+            >
+              <FiCamera />
+            </button>
+            {profile?.avatar?.url && (
+              <button
+                className={styles.avatarDeleteBtn}
+                onClick={handleDeleteAvatar}
+                title="Delete avatar"
+              >
+                <FiTrash2 />
+              </button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              style={{ display: 'none' }}
+            />
+          </div>
+          <h2 className={styles.userName}>{profile?.fullName}</h2>
+          <p className={styles.userRole}>{profile?.role}</p>
+        </div>
+
+        <div className={styles.profileInfo}>
+          <div className={styles.sectionHeader}>
+            <h3>Personal Information</h3>
+            {!isEditing ? (
+              <button className={styles.editBtn} onClick={() => setIsEditing(true)}>
+                <FiEdit2 /> Edit Profile
+              </button>
+            ) : (
+              <div className={styles.editActions}>
+                <button className={styles.saveBtn} onClick={handleSubmit}>
+                  <FiSave /> Save
+                </button>
+                <button className={styles.cancelBtn} onClick={handleCancel}>
+                  <FiX /> Cancel
+                </button>
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} className={styles.profileForm}>
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
+                <label>
+                  <FiUser /> First Name
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleInputChange}
+                    required
+                  />
+                ) : (
+                  <p className={styles.fieldValue}>{profile?.firstName}</p>
+                )}
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>
+                  <FiUser /> Last Name
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleInputChange}
+                    required
+                  />
+                ) : (
+                  <p className={styles.fieldValue}>{profile?.lastName}</p>
+                )}
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>
+                <FiMail /> Email
+              </label>
+              {isEditing ? (
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                />
+              ) : (
+                <p className={styles.fieldValue}>{profile?.email}</p>
+              )}
+              {!profile?.isVerified && (
+                <span className={styles.unverifiedBadge}>Email not verified</span>
+              )}
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>
+                <FiPhone /> Phone
+              </label>
+              {isEditing ? (
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                />
+              ) : (
+                <p className={styles.fieldValue}>{profile?.phone || 'Not provided'}</p>
+              )}
+            </div>
+          </form>
+        </div>
+
+        <div className={styles.accountStats}>
+          <div className={styles.statCard}>
+            <h4>Member Since</h4>
+            <p>{profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}</p>
+          </div>
+          <div className={styles.statCard}>
+            <h4>Last Login</h4>
+            <p>{profile?.lastLogin ? new Date(profile.lastLogin).toLocaleDateString() : 'N/A'}</p>
+          </div>
+          <div className={styles.statCard}>
+            <h4>Account Status</h4>
+            <p className={profile?.isActive ? styles.active : styles.inactive}>
+              {profile?.isActive ? 'Active' : 'Inactive'}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProfilePage;

@@ -1,0 +1,29 @@
+.container { padding: 0; }
+.header { margin-bottom: 2rem; }
+.header h1 { font-size: 2rem; font-weight: 700; color: #1f2937; margin: 0 0 0.5rem 0; }
+.header p { color: #6b7280; margin: 0; }
+.loading { text-align: center; padding: 3rem; color: #6b7280; }
+.form { width: 100%; }
+.grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; }
+.mainSection, .sideSection { display: flex; flex-direction: column; gap: 1.5rem; }
+.card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+.card h3 { font-size: 1.125rem; font-weight: 600; color: #1f2937; margin: 0 0 1.5rem 0; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb; }
+.formGroup { margin-bottom: 1.25rem; }
+.formGroup:last-child { margin-bottom: 0; }
+.formGroup label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.5rem; }
+.formGroup input, .formGroup textarea { width: 100%; padding: 0.75rem 1rem; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.95rem; }
+.formGroup input:focus, .formGroup textarea:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1); }
+.mediaGrid { display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; }
+.mediaItem label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.5rem; }
+.mediaPreview { width: 120px; height: 120px; border: 2px dashed #e5e7eb; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 2rem; overflow: hidden; margin-bottom: 0.5rem; }
+.mediaPreview img { width: 100%; height: 100%; object-fit: cover; }
+.bannerPreview { width: 100%; height: 120px; border: 2px dashed #e5e7eb; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 2rem; overflow: hidden; margin-bottom: 0.5rem; }
+.bannerPreview img { width: 100%; height: 100%; object-fit: cover; }
+.fileInput { font-size: 0.875rem; }
+.statusInfo p { margin: 0.5rem 0; font-size: 0.875rem; color: #374151; }
+.verified { color: #10b981; font-weight: 600; text-transform: capitalize; }
+.actions { display: flex; justify-content: flex-end; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb; }
+.saveBtn { display: flex; align-items: center; gap: 0.5rem; padding: 0.875rem 2rem; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.saveBtn:hover { background: #059669; }
+.saveBtn:disabled { opacity: 0.7; cursor: not-allowed; }
+@media (max-width: 1024px) { .grid { grid-template-columns: 1fr; } .mediaGrid { grid-template-columns: 1fr; } }

@@ -1,0 +1,160 @@
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: 280px;
+  background: #0b102a;
+  color: #cbd5f5;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1rem;
+  gap: 1.25rem;
+  transition: width 0.3s ease, transform 0.3s ease;
+  z-index: 50;
+}
+
+.sidebarCollapsed {
+  width: 90px;
+}
+
+.mobileOpen {
+  transform: translateX(0);
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    transform: translateX(-110%);
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.65);
+  }
+}
+
+.logoRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logoMark {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #635bff, #38bdf8);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #fff;
+}
+
+.logoText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.collapseBtn {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.nav {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.35rem;
+}
+
+.navLink,
+.navButton {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 0.75rem 0.85rem;
+  color: #cbd5f5;
+  border-radius: 12px;
+  text-decoration: none;
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.navLink svg,
+.navButton svg {
+  font-size: 1.15rem;
+}
+
+.navLink:hover,
+.navButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.activeLink {
+  color: #fff;
+  background: rgba(99, 91, 255, 0.25);
+  border-left: 4px solid #7c3aed;
+}
+
+.collapsed span {
+  display: none;
+}
+
+.group {
+  margin-bottom: 0.35rem;
+}
+
+.subMenu {
+  max-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-left: 1rem;
+  transition: max-height 0.25s ease;
+}
+
+.subMenuOpen {
+  max-height: 500px;
+}
+
+.subLink {
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  color: #a0b4ff;
+  text-decoration: none;
+}
+
+.subLink:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.profileCard {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #1f2933;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+}

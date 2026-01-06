@@ -1,0 +1,24 @@
+.container { padding: 0; }
+.header { margin-bottom: 2rem; }
+.header h1 { font-size: 2rem; font-weight: 700; color: #1f2937; margin: 0 0 0.5rem 0; }
+.header p { color: #6b7280; margin: 0; }
+.content { display: grid; grid-template-columns: 250px 1fr; gap: 1.5rem; }
+.sidebar { display: flex; flex-direction: column; gap: 0.5rem; }
+.tabBtn { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1.25rem; background: white; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; text-align: left; font-size: 0.95rem; color: #374151; transition: all 0.2s; }
+.tabBtn:hover { background: #f9fafb; }
+.activeTab { background: #667eea; color: white; border-color: #667eea; }
+.activeTab:hover { background: #5a67d8; }
+.main { display: flex; flex-direction: column; gap: 1.5rem; }
+.card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+.card h3 { font-size: 1.125rem; font-weight: 600; color: #1f2937; margin: 0 0 1.5rem 0; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb; }
+.formGroup { margin-bottom: 1.25rem; }
+.formGroup label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.5rem; }
+.formGroup input, .formGroup select, .formGroup textarea { width: 100%; padding: 0.75rem 1rem; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.95rem; }
+.formGroup input:focus, .formGroup select:focus, .formGroup textarea:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.toggle { margin-bottom: 1rem; }
+.toggle label { display: flex; align-items: center; gap: 0.75rem; cursor: pointer; font-size: 0.95rem; color: #374151; }
+.toggle input { width: 18px; height: 18px; }
+.saveBtn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 1rem 2rem; background: #667eea; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; align-self: flex-start; }
+.saveBtn:hover { background: #5a67d8; }
+@media (max-width: 768px) { .content { grid-template-columns: 1fr; } .row { grid-template-columns: 1fr; } }

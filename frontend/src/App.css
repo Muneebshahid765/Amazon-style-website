@@ -1,0 +1,6 @@
+.pageGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2rem;
+  padding: clamp(1rem, 4vw, 4rem);
+}
