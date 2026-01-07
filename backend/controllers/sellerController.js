@@ -8,88 +8,15 @@ import Store from '../models/Store.js';
 import Payout from '../models/Payout.js';
 import Review from '../models/Review.js';
 import Category from '../models/Category.js';
-import { sendEmail } from '../utils/sendEmail.js';
-
-const resolveCategoryValue = async (rawValue) => {
-  if (!rawValue) return null;
-  const normalizedSlug = slugify(String(rawValue), { lower: true, strict: true });
-
-  let categoryDoc = await Category.findOne({
-    $or: [{ slug: normalizedSlug }, { name: new RegExp(`^${rawValue}$`, 'i') }],
-  });
-
-  if (!categoryDoc) {
-    let slugCandidate = normalizedSlug || `category-${Date.now()}`;
-    let counter = 1;
-    while (await Category.exists({ slug: slugCandidate })) {
-      slugCandidate = `${normalizedSlug}-${counter++}`;
-    }
-
-    categoryDoc = await Category.create({
-      name: rawValue,
-      slug: slugCandidate,
-    });
-  }
-
-  return categoryDoc._id;
-};
-
-const mapCategoryField = async (data, fieldName) => {
-  if (!data[fieldName]) return;
-  const currentValue = data[fieldName];
-  const isValidId = mongoose.Types.ObjectId.isValid(currentValue);
-  if (isValidId) return;
-
-  const resolvedId = await resolveCategoryValue(currentValue);
-  if (resolvedId) {
-    data[fieldName] = resolvedId;
-  } else {
-    delete data[fieldName];
-  }
-};
-
-const uploadProductImages = async (files = []) => {
-  if (!files.length || !cloudinary?.uploader) return [];
-
-  const uploadOptions = {
-    folder: 'novamart/products',
-    transformation: [
-      { width: 800, height: 800, crop: 'limit' },
-      { quality: 'auto', fetch_format: 'auto' },
-    ],
-  };
-
-  return Promise.all(
-    files.map(
-      (file) =>
-        new Promise((resolve, reject) => {
-          const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
-            if (error) reject(error);
-            else resolve({
-              public_id: result.public_id,
-              url: result.secure_url,
-              alt: file.originalname,
-            });
-          });
-
-          streamifier.createReadStream(file.buffer).pipe(uploadStream);
-        })
-    )
-  );
-};
-
-const parseExistingImages = (input) => {
-  if (input === undefined) return null;
-  if (typeof input === 'string') {
-    try {
-      const parsed = JSON.parse(input);
-      return Array.isArray(parsed) ? parsed : null;
-    } catch (error) {
-      return null;
-    }
-  }
-  return Array.isArray(input) ? input : null;
-};
+import Coupon from '../models/Coupon.js';
+import SellerVerification from '../models/SellerVerification.js';
+import User from '../models/User.js';
+import {
+  mapCategoryField,
+  parseExistingImages,
+  uploadProductImages,
+} from '../utils/productHelpers.js';
+import { stripeClient } from '../config/stripe.js';
 
 export const getDashboardStats = async (req, res, next) => {
   try {
@@ -406,6 +333,41 @@ export const getOrders = async (req, res, next) => {
   }
 };
 
+export const getOrderDetail = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const sellerId = req.user._id.toString();
+
+    const order = await Order.findById(orderId)
+      .populate('user', 'firstName lastName email phone')
+      .lean();
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const sellerItems = (order.orderItems || []).filter(
+      (item) => item.seller?.toString() === sellerId
+    );
+
+    if (!sellerItems.length) {
+      return res.status(404).json({ message: 'No items from this order belong to you' });
+    }
+
+    const sellerSubtotal = sellerItems.reduce(
+      (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
+      0
+    );
+
+    order.orderItems = sellerItems;
+    order.sellerSubtotal = sellerSubtotal;
+
+    res.json({ order });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const updateOrderItemStatus = async (req, res, next) => {
   try {
     const { orderId, itemId } = req.params;
@@ -648,6 +610,748 @@ export const getProductAnalytics = async (req, res, next) => {
       analytics: analytics[0] || {},
       topProducts,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== BANK ACCOUNT & PAYOUT SETTINGS ====================
+
+export const updatePayoutSettings = async (req, res, next) => {
+  try {
+    const { payoutMethod, bankAccount, paypalAccount, minimumPayout, autoPayoutEnabled, autoPayoutDay } = req.body;
+    
+    const store = await Store.findOne({ seller: req.user._id });
+    if (!store) {
+      return res.status(404).json({ message: 'Store not found' });
+    }
+
+    if (payoutMethod) store.payoutMethod = payoutMethod;
+    if (bankAccount) {
+      store.bankAccount = { ...store.bankAccount?.toObject(), ...bankAccount };
+    }
+    if (paypalAccount) {
+      store.paypalAccount = { ...store.paypalAccount?.toObject(), ...paypalAccount };
+    }
+    if (minimumPayout !== undefined) store.minimumPayout = minimumPayout;
+    if (autoPayoutEnabled !== undefined) store.autoPayoutEnabled = autoPayoutEnabled;
+    if (autoPayoutDay !== undefined) store.autoPayoutDay = autoPayoutDay;
+
+    await store.save();
+    res.json({ store, message: 'Payout settings updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPayoutSettings = async (req, res, next) => {
+  try {
+    const store = await Store.findOne({ seller: req.user._id })
+      .select('payoutMethod bankAccount paypalAccount stripeAccountId minimumPayout autoPayoutEnabled autoPayoutDay');
+    
+    if (!store) {
+      return res.status(404).json({ message: 'Store not found' });
+    }
+
+    res.json({ payoutSettings: store });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPayoutHistory = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, status } = req.query;
+    const query = { seller: req.user._id };
+    if (status) query.status = status;
+
+    const [payouts, total] = await Promise.all([
+      Payout.find(query)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(Number(limit))
+        .lean(),
+      Payout.countDocuments(query),
+    ]);
+
+    res.json({
+      payouts,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: Number(page),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getTransactions = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, type, startDate, endDate } = req.query;
+    const sellerId = req.user._id;
+
+    const matchQuery = { 'orderItems.seller': sellerId, status: { $in: ['processing', 'packed', 'shipped', 'delivered'] } };
+    
+    if (startDate || endDate) {
+      matchQuery.createdAt = {};
+      if (startDate) matchQuery.createdAt.$gte = new Date(startDate);
+      if (endDate) matchQuery.createdAt.$lte = new Date(endDate);
+    }
+
+    const transactions = await Order.aggregate([
+      { $match: matchQuery },
+      { $unwind: '$orderItems' },
+      { $match: { 'orderItems.seller': sellerId } },
+      {
+        $project: {
+          orderId: '$_id',
+          orderNumber: 1,
+          date: '$createdAt',
+          productTitle: '$orderItems.title',
+          quantity: '$orderItems.quantity',
+          price: '$orderItems.price',
+          total: { $multiply: ['$orderItems.price', '$orderItems.quantity'] },
+          status: '$orderItems.itemStatus',
+          type: { $literal: 'sale' },
+        },
+      },
+      { $sort: { date: -1 } },
+      { $skip: (page - 1) * limit },
+      { $limit: Number(limit) },
+    ]);
+
+    const totalCount = await Order.aggregate([
+      { $match: matchQuery },
+      { $unwind: '$orderItems' },
+      { $match: { 'orderItems.seller': sellerId } },
+      { $count: 'total' },
+    ]);
+
+    res.json({
+      transactions,
+      total: totalCount[0]?.total || 0,
+      totalPages: Math.ceil((totalCount[0]?.total || 0) / limit),
+      currentPage: Number(page),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== BUSINESS INFO ====================
+
+export const updateBusinessInfo = async (req, res, next) => {
+  try {
+    const store = await Store.findOne({ seller: req.user._id });
+    if (!store) {
+      return res.status(404).json({ message: 'Store not found' });
+    }
+
+    store.businessInfo = { ...store.businessInfo?.toObject(), ...req.body };
+    await store.save();
+
+    res.json({ store, message: 'Business information updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== VACATION MODE ====================
+
+export const updateVacationMode = async (req, res, next) => {
+  try {
+    const { isEnabled, startDate, endDate, message } = req.body;
+    
+    const store = await Store.findOne({ seller: req.user._id });
+    if (!store) {
+      return res.status(404).json({ message: 'Store not found' });
+    }
+
+    store.vacationMode = {
+      isEnabled: isEnabled || false,
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      message: message || '',
+    };
+
+    await store.save();
+    res.json({ store, message: 'Vacation mode updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== SELLER PERFORMANCE ====================
+
+export const getPerformanceMetrics = async (req, res, next) => {
+  try {
+    const sellerId = req.user._id;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const [store, orderStats, reviewStats] = await Promise.all([
+      Store.findOne({ seller: sellerId }).select('metrics sellerLevel rating'),
+      Order.aggregate([
+        { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+        { $unwind: '$orderItems' },
+        { $match: { 'orderItems.seller': sellerId } },
+        {
+          $group: {
+            _id: null,
+            totalOrders: { $sum: 1 },
+            deliveredOrders: {
+              $sum: { $cond: [{ $eq: ['$orderItems.itemStatus', 'delivered'] }, 1, 0] },
+            },
+            cancelledOrders: {
+              $sum: { $cond: [{ $eq: ['$orderItems.itemStatus', 'cancelled'] }, 1, 0] },
+            },
+            returnedOrders: {
+              $sum: { $cond: [{ $eq: ['$orderItems.itemStatus', 'returned'] }, 1, 0] },
+            },
+            onTimeShipped: {
+              $sum: { $cond: [{ $lte: ['$orderItems.shippedWithinDays', 2] }, 1, 0] },
+            },
+          },
+        },
+      ]),
+      Review.aggregate([
+        {
+          $lookup: {
+            from: 'products',
+            localField: 'product',
+            foreignField: '_id',
+            as: 'productInfo',
+          },
+        },
+        { $unwind: '$productInfo' },
+        { $match: { 'productInfo.seller': sellerId, createdAt: { $gte: thirtyDaysAgo } } },
+        {
+          $group: {
+            _id: null,
+            avgRating: { $avg: '$rating' },
+            totalReviews: { $sum: 1 },
+            positiveReviews: { $sum: { $cond: [{ $gte: ['$rating', 4] }, 1, 0] } },
+          },
+        },
+      ]),
+    ]);
+
+    const stats = orderStats[0] || {};
+    const reviews = reviewStats[0] || {};
+
+    const fulfillmentRate = stats.totalOrders > 0 
+      ? ((stats.deliveredOrders / stats.totalOrders) * 100).toFixed(1) 
+      : 100;
+    const cancellationRate = stats.totalOrders > 0 
+      ? ((stats.cancelledOrders / stats.totalOrders) * 100).toFixed(1) 
+      : 0;
+    const returnRate = stats.totalOrders > 0 
+      ? ((stats.returnedOrders / stats.totalOrders) * 100).toFixed(1) 
+      : 0;
+    const onTimeShippingRate = stats.totalOrders > 0 
+      ? ((stats.onTimeShipped / stats.totalOrders) * 100).toFixed(1) 
+      : 100;
+
+    res.json({
+      metrics: {
+        fulfillmentRate: Number(fulfillmentRate),
+        cancellationRate: Number(cancellationRate),
+        returnRate: Number(returnRate),
+        onTimeShippingRate: Number(onTimeShippingRate),
+        avgRating: reviews.avgRating?.toFixed(1) || store?.rating?.average || 0,
+        totalReviews: reviews.totalReviews || 0,
+        positiveReviewRate: reviews.totalReviews > 0 
+          ? ((reviews.positiveReviews / reviews.totalReviews) * 100).toFixed(1) 
+          : 100,
+      },
+      sellerLevel: store?.sellerLevel || 'new',
+      storeRating: store?.rating || { average: 0, count: 0 },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== REPORTS ====================
+
+export const getSalesReport = async (req, res, next) => {
+  try {
+    const { startDate, endDate, groupBy = 'day' } = req.query;
+    const sellerId = req.user._id;
+
+    const matchQuery = { 'orderItems.seller': sellerId, status: { $in: ['processing', 'packed', 'shipped', 'delivered'] } };
+    
+    if (startDate || endDate) {
+      matchQuery.createdAt = {};
+      if (startDate) matchQuery.createdAt.$gte = new Date(startDate);
+      if (endDate) matchQuery.createdAt.$lte = new Date(endDate);
+    }
+
+    let dateFormat;
+    switch (groupBy) {
+      case 'week':
+        dateFormat = '%Y-W%V';
+        break;
+      case 'month':
+        dateFormat = '%Y-%m';
+        break;
+      default:
+        dateFormat = '%Y-%m-%d';
+    }
+
+    const salesData = await Order.aggregate([
+      { $match: matchQuery },
+      { $unwind: '$orderItems' },
+      { $match: { 'orderItems.seller': sellerId } },
+      {
+        $group: {
+          _id: { $dateToString: { format: dateFormat, date: '$createdAt' } },
+          revenue: { $sum: { $multiply: ['$orderItems.price', '$orderItems.quantity'] } },
+          orders: { $sum: 1 },
+          unitsSold: { $sum: '$orderItems.quantity' },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const totals = salesData.reduce(
+      (acc, item) => ({
+        totalRevenue: acc.totalRevenue + item.revenue,
+        totalOrders: acc.totalOrders + item.orders,
+        totalUnits: acc.totalUnits + item.unitsSold,
+      }),
+      { totalRevenue: 0, totalOrders: 0, totalUnits: 0 }
+    );
+
+    res.json({ data: salesData, totals });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getInventoryReport = async (req, res, next) => {
+  try {
+    const sellerId = req.user._id;
+
+    const [inventory, lowStock, outOfStock] = await Promise.all([
+      Product.find({ seller: sellerId, status: 'active' })
+        .select('title sku stock lowStockThreshold price images')
+        .sort({ stock: 1 })
+        .limit(50)
+        .lean(),
+      Product.countDocuments({
+        seller: sellerId,
+        status: 'active',
+        $expr: { $and: [{ $gt: ['$stock', 0] }, { $lte: ['$stock', '$lowStockThreshold'] }] },
+      }),
+      Product.countDocuments({ seller: sellerId, status: 'active', stock: 0 }),
+    ]);
+
+    const totalValue = inventory.reduce((sum, p) => sum + (p.price * p.stock), 0);
+
+    res.json({
+      inventory,
+      summary: {
+        lowStockCount: lowStock,
+        outOfStockCount: outOfStock,
+        totalInventoryValue: totalValue,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== BULK OPERATIONS ====================
+
+export const bulkUpdateStock = async (req, res, next) => {
+  try {
+    const { updates } = req.body; // Array of { productId, stock }
+    const sellerId = req.user._id;
+
+    const bulkOps = updates.map(({ productId, stock }) => ({
+      updateOne: {
+        filter: { _id: productId, seller: sellerId },
+        update: { $set: { stock: Number(stock) } },
+      },
+    }));
+
+    const result = await Product.bulkWrite(bulkOps);
+
+    res.json({
+      message: 'Stock updated successfully',
+      modifiedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkUpdatePrices = async (req, res, next) => {
+  try {
+    const { updates } = req.body; // Array of { productId, price, discountPrice }
+    const sellerId = req.user._id;
+
+    const bulkOps = updates.map(({ productId, price, discountPrice }) => ({
+      updateOne: {
+        filter: { _id: productId, seller: sellerId },
+        update: { 
+          $set: { 
+            price: Number(price),
+            ...(discountPrice !== undefined && { discountPrice: Number(discountPrice) }),
+          },
+        },
+      },
+    }));
+
+    const result = await Product.bulkWrite(bulkOps);
+
+    res.json({
+      message: 'Prices updated successfully',
+      modifiedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== CATEGORIES FOR SELLER ====================
+
+export const getCategories = async (req, res, next) => {
+  try {
+    const categories = await Category.find({ isActive: true })
+      .select('name slug parent')
+      .populate('parent', 'name slug')
+      .sort({ name: 1 })
+      .lean();
+
+    res.json({ categories });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== VERIFICATION ====================
+
+const uploadVerificationDocuments = async (files = []) => {
+  if (!files.length || !cloudinary?.uploader) return [];
+  const options = {
+    folder: 'novamart/seller-verification',
+    resource_type: 'auto',
+  };
+
+  return Promise.all(
+    files.map(
+      (file) =>
+        new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(options, (error, result) => {
+            if (error) reject(error);
+            else resolve({ public_id: result.public_id, url: result.secure_url, name: file.originalname, type: file.mimetype });
+          });
+          streamifier.createReadStream(file.buffer).pipe(stream);
+        })
+    )
+  );
+};
+
+export const submitSellerVerification = async (req, res, next) => {
+  try {
+    const sellerId = req.user._id;
+    const {
+      businessName,
+      businessType,
+      registrationNumber,
+      taxId,
+      businessCategory,
+      website,
+      description,
+      address,
+      submissionNotes,
+      paymentMethod,
+      paymentIntentId,
+      fee,
+    } = req.body;
+
+    if (!businessName) {
+      return res.status(400).json({ message: 'Business name is required' });
+    }
+
+    const sellerUser = await User.findById(sellerId);
+    if (!sellerUser) {
+      return res.status(404).json({ message: 'Seller not found' });
+    }
+
+    let paymentRecord = null;
+    if (paymentMethod === 'stripe') {
+      if (!paymentIntentId || !stripeClient) {
+        return res.status(400).json({ message: 'Stripe payment intent is required' });
+      }
+
+      const intent = await stripeClient.paymentIntents.retrieve(paymentIntentId, {
+        expand: ['latest_charge', 'charges.data.payment_method_details.card'],
+      });
+
+      if (!intent || intent.status !== 'succeeded') {
+        return res.status(400).json({ message: 'Payment not completed. Please try again.' });
+      }
+
+      paymentRecord = {
+        provider: 'stripe',
+        paymentIntentId: intent.id,
+        amount: intent.amount_received / 100,
+        currency: intent.currency,
+        cardBrand: intent.charges?.data?.[0]?.payment_method_details?.card?.brand,
+        cardLast4: intent.charges?.data?.[0]?.payment_method_details?.card?.last4,
+        paidAt: new Date(intent.created * 1000),
+      };
+    } else if (paymentMethod === 'wallet') {
+      if (!fee || Number(fee) <= 0) {
+        return res.status(400).json({ message: 'Fee is required for wallet payments' });
+      }
+      const store = await Store.findOne({ seller: sellerId });
+      if (!store || (store.availableBalance || 0) < Number(fee)) {
+        return res.status(400).json({ message: 'Insufficient wallet balance' });
+      }
+      store.availableBalance -= Number(fee);
+      await store.save();
+      paymentRecord = {
+        provider: 'wallet',
+        amount: Number(fee),
+        currency: 'USD',
+        paidAt: new Date(),
+      };
+    } else {
+      return res.status(400).json({ message: 'Unsupported payment method' });
+    }
+
+    const existing = await SellerVerification.findOne({ seller: sellerId });
+    if (existing && existing.status === 'approved') {
+      return res.status(400).json({ message: 'Seller already verified' });
+    }
+
+    let parsedAddress;
+    if (address) {
+      try {
+        parsedAddress = typeof address === 'string' ? JSON.parse(address) : address;
+      } catch (parseError) {
+        return res.status(400).json({ message: 'Invalid address format' });
+      }
+    }
+
+    const uploadedDocs = await uploadVerificationDocuments(req.files || []);
+
+    const payload = {
+      seller: sellerId,
+      businessName,
+      businessType,
+      registrationNumber,
+      taxId,
+      businessCategory,
+      website,
+      description,
+      address: parsedAddress,
+      submissionNotes,
+      fee: paymentRecord?.amount,
+      payment: paymentRecord,
+    };
+
+    if (uploadedDocs.length) {
+      payload.documents = uploadedDocs.map((doc) => ({
+        name: doc.name,
+        type: doc.type,
+        url: doc.url,
+        public_id: doc.public_id,
+      }));
+    }
+
+    let verification;
+    if (existing) {
+      verification = await SellerVerification.findOneAndUpdate(
+        { seller: sellerId },
+        {
+          ...payload,
+          status: 'pending',
+          rejectionReason: undefined,
+          reviewedAt: undefined,
+          reviewedBy: undefined,
+        },
+        { new: true }
+      );
+    } else {
+      verification = await SellerVerification.create(payload);
+    }
+
+    sellerUser.businessInfo = sellerUser.businessInfo || {};
+    sellerUser.businessInfo.verificationStatus = 'pending';
+    sellerUser.businessInfo.isVerified = false;
+    sellerUser.accountStatus = 'pending_verification';
+    await sellerUser.save();
+
+    const store = await Store.findOne({ seller: sellerId });
+    if (store) {
+      store.verificationStatus = 'pending';
+      store.verifiedAt = undefined;
+      await store.save();
+    }
+
+    res.status(201).json({ message: 'Verification submitted', verification });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSellerVerification = async (req, res, next) => {
+  try {
+    const sellerId = req.user._id;
+    const verification = await SellerVerification.findOne({ seller: sellerId }).lean();
+    res.json({ verification });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createVerificationPaymentIntent = async (req, res, next) => {
+  try {
+    if (!stripeClient) {
+      return res.status(500).json({ message: 'Stripe is not configured' });
+    }
+
+    const sellerId = req.user._id;
+    const seller = await User.findById(sellerId);
+    if (!seller) {
+      return res.status(404).json({ message: 'Seller not found' });
+    }
+
+    const amount = Number(process.env.SELLER_VERIFICATION_FEE || 49); // USD
+    const currency = (process.env.SELLER_VERIFICATION_CURRENCY || 'usd').toLowerCase();
+
+    const intent = await stripeClient.paymentIntents.create({
+      amount: Math.round(amount * 100),
+      currency,
+      description: 'Seller verification fee',
+      automatic_payment_methods: { enabled: true },
+      receipt_email: seller.email,
+      metadata: {
+        sellerId: sellerId.toString(),
+        purpose: 'seller_verification',
+      },
+    });
+
+    res.json({
+      clientSecret: intent.client_secret,
+      paymentIntentId: intent.id,
+      amount,
+      currency,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== SELLER COUPONS ====================
+
+export const getSellerCoupons = async (req, res, next) => {
+  try {
+    const sellerId = req.user._id;
+    const { page = 1, limit = 20, status, search } = req.query;
+    const numericPage = Number(page) || 1;
+    const numericLimit = Number(limit) || 20;
+
+    const query = { seller: sellerId };
+    if (status === 'active') {
+      query.isActive = true;
+      query.expiresAt = { $gt: new Date() };
+    } else if (status === 'inactive') {
+      query.isActive = false;
+    } else if (status === 'expired') {
+      query.expiresAt = { $lte: new Date() };
+    }
+    if (search) {
+      query.code = { $regex: search, $options: 'i' };
+    }
+
+    const [coupons, total] = await Promise.all([
+      Coupon.find(query)
+        .sort({ createdAt: -1 })
+        .skip((numericPage - 1) * numericLimit)
+        .limit(numericLimit)
+        .lean(),
+      Coupon.countDocuments(query),
+    ]);
+
+    res.json({
+      coupons,
+      total,
+      totalPages: Math.ceil(total / numericLimit) || 1,
+      currentPage: numericPage,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createSellerCoupon = async (req, res, next) => {
+  try {
+    const sellerId = req.user._id;
+    const couponData = req.body;
+
+    if (!couponData.code || !couponData.discountValue || !couponData.expiresAt) {
+      return res.status(400).json({ message: 'Code, discount value, and expiry date are required' });
+    }
+
+    const existingCoupon = await Coupon.findOne({
+      code: couponData.code.toUpperCase(),
+      seller: sellerId,
+    });
+    if (existingCoupon) {
+      return res.status(400).json({ message: 'Coupon code already exists for your store' });
+    }
+
+    const coupon = await Coupon.create({
+      ...couponData,
+      code: couponData.code.toUpperCase(),
+      seller: sellerId,
+    });
+
+    res.status(201).json({ message: 'Coupon created', coupon });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateSellerCoupon = async (req, res, next) => {
+  try {
+    const sellerId = req.user._id;
+    const { id } = req.params;
+    const coupon = await Coupon.findOne({ _id: id, seller: sellerId });
+
+    if (!coupon) {
+      return res.status(404).json({ message: 'Coupon not found' });
+    }
+
+    Object.assign(coupon, req.body);
+    if (req.body.code) {
+      coupon.code = req.body.code.toUpperCase();
+    }
+    await coupon.save();
+
+    res.json({ message: 'Coupon updated', coupon });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteSellerCoupon = async (req, res, next) => {
+  try {
+    const sellerId = req.user._id;
+    const { id } = req.params;
+
+    const coupon = await Coupon.findOneAndDelete({ _id: id, seller: sellerId });
+    if (!coupon) {
+      return res.status(404).json({ message: 'Coupon not found' });
+    }
+
+    res.json({ message: 'Coupon deleted' });
   } catch (error) {
     next(error);
   }

@@ -78,9 +78,15 @@ productSchema.pre('save', function normalizeDiscount(next) {
   if (this.discountPrice && this.discountPrice > this.price) {
     this.discountPrice = this.price;
   }
-  if (this.trackInventory && this.stock <= this.lowStockThreshold) {
-    this.status = 'outofstock';
+
+  if (this.trackInventory) {
+    if (this.stock <= 0) {
+      this.status = 'outofstock';
+    } else if (this.status !== 'inactive') {
+      this.status = 'active';
+    }
   }
+
   next();
 });
 

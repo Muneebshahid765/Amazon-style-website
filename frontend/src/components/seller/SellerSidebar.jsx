@@ -10,6 +10,9 @@ import {
   FiSettings,
   FiUpload,
   FiTag,
+  FiFileText,
+  FiCreditCard,
+  FiShield,
 } from 'react-icons/fi';
 import styles from './SellerSidebar.module.css';
 
@@ -47,9 +50,18 @@ const SellerSidebar = ({ isOpen, onToggle }) => {
         { path: '/seller/earnings', label: 'Overview' },
         { path: '/seller/earnings/transactions', label: 'Transactions' },
         { path: '/seller/earnings/payouts', label: 'Payouts' },
-        { path: '/seller/earnings/reports', label: 'Reports' },
       ],
     },
+    {
+      path: '/seller/reports',
+      icon: FiFileText,
+      label: 'Reports',
+      children: [
+        { path: '/seller/reports', label: 'Sales Report' },
+        { path: '/seller/reports/inventory', label: 'Inventory Report' },
+      ],
+    },
+    { path: '/seller/verification', icon: FiShield, label: 'Verification' },
     { path: '/seller/reviews', icon: FiStar, label: 'Reviews' },
     { path: '/seller/analytics', icon: FiTrendingUp, label: 'Analytics' },
     {
@@ -59,6 +71,7 @@ const SellerSidebar = ({ isOpen, onToggle }) => {
       children: [
         { path: '/seller/marketing/promotions', label: 'Promotions' },
         { path: '/seller/marketing/discounts', label: 'Discounts' },
+        { path: '/seller/marketing/coupons', label: 'Coupons' },
       ],
     },
     { path: '/seller/store', icon: FiGrid, label: 'My Store' },

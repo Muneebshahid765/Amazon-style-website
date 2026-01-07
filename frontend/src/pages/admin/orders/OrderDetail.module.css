@@ -1,16 +1,25 @@
 .container { padding: 0; }
 .backBtn { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: none; border: none; color: #6b7280; cursor: pointer; margin-bottom: 1.5rem; }
+.backBtn:hover { color: #374151; }
 .loading, .error { text-align: center; padding: 3rem; color: #6b7280; }
-.header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
 .header h1 { font-size: 1.75rem; font-weight: 700; color: #1f2937; margin: 0 0 0.25rem 0; }
 .header p { color: #6b7280; margin: 0; }
+.headerActions { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
 .statusSelect { padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; }
+.statusSelect:disabled { opacity: 0.7; cursor: not-allowed; }
 .statusSelect.pending { background: #fef3c7; color: #92400e; }
 .statusSelect.processing { background: #dbeafe; color: #1e40af; }
 .statusSelect.packed { background: #e0e7ff; color: #3730a3; }
 .statusSelect.shipped { background: #d1fae5; color: #065f46; }
 .statusSelect.delivered { background: #d1fae5; color: #065f46; }
 .statusSelect.cancelled { background: #fee2e2; color: #991b1b; }
+.statusSelect.refunded { background: #fce7f3; color: #9d174d; }
+.cancelBtn, .refundBtn { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.875rem; }
+.cancelBtn { background: #fee2e2; color: #991b1b; }
+.cancelBtn:hover { background: #fecaca; }
+.refundBtn { background: #fce7f3; color: #9d174d; }
+.refundBtn:hover { background: #fbcfe8; }
 .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; }
 .mainSection, .sideSection { display: flex; flex-direction: column; gap: 1.5rem; }
 .card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
@@ -21,20 +30,48 @@
 .itemInfo { flex: 1; }
 .itemTitle { font-weight: 600; color: #1f2937; margin: 0 0 0.25rem 0; }
 .itemPrice { font-size: 0.875rem; color: #6b7280; margin: 0; }
+.itemSku { font-size: 0.75rem; color: #9ca3af; margin: 0.25rem 0 0 0; }
+.itemSeller { font-size: 0.75rem; color: #667eea; margin: 0.25rem 0 0 0; }
 .itemStatus { padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; }
 .itemStatus.pending { background: #fef3c7; color: #92400e; }
 .itemStatus.processing { background: #dbeafe; color: #1e40af; }
+.itemStatus.packed { background: #e0e7ff; color: #3730a3; }
 .itemStatus.shipped { background: #d1fae5; color: #065f46; }
+.itemStatus.delivered { background: #d1fae5; color: #065f46; }
+.itemStatus.cancelled { background: #fee2e2; color: #991b1b; }
 .itemTotal { font-weight: 700; color: #1f2937; min-width: 80px; text-align: right; }
 .orderSummary { border-top: 1px solid #e5e7eb; padding-top: 1rem; }
 .summaryRow { display: flex; justify-content: space-between; padding: 0.5rem 0; font-size: 0.875rem; color: #6b7280; }
 .summaryRow.total { font-size: 1rem; font-weight: 700; color: #1f2937; border-top: 1px solid #e5e7eb; padding-top: 1rem; margin-top: 0.5rem; }
+.discount { color: #059669; }
 .trackingForm { display: flex; gap: 1rem; flex-wrap: wrap; }
 .input, .select { flex: 1; min-width: 150px; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 8px; }
+.input:focus, .select:focus { outline: none; border-color: #667eea; }
 .addTrackingBtn { padding: 0.75rem 1.5rem; background: #667eea; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.addTrackingBtn:hover { background: #5a67d8; }
+.timeline { display: flex; flex-direction: column; gap: 1rem; }
+.timelineItem { display: flex; gap: 1rem; position: relative; }
+.timelineDot { width: 12px; height: 12px; border-radius: 50%; background: #667eea; margin-top: 4px; flex-shrink: 0; }
+.timelineItem:not(:last-child)::before { content: ''; position: absolute; left: 5px; top: 20px; bottom: -12px; width: 2px; background: #e5e7eb; }
+.timelineContent { flex: 1; }
+.timelineStatus { font-weight: 600; color: #1f2937; margin: 0; text-transform: capitalize; }
+.timelineDate { font-size: 0.75rem; color: #9ca3af; margin: 0.25rem 0 0 0; }
+.timelineNote { font-size: 0.875rem; color: #6b7280; margin: 0.5rem 0 0 0; }
 .customerName { font-weight: 600; color: #1f2937; margin: 0 0 0.5rem 0; }
 .customerDetail { font-size: 0.875rem; color: #6b7280; margin: 0.25rem 0; }
+.guestBadge { display: inline-block; padding: 0.25rem 0.5rem; background: #fef3c7; color: #92400e; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-top: 0.5rem; }
 .paymentStatus { padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
 .paymentStatus.paid { background: #d1fae5; color: #065f46; }
-.paymentStatus.pending { background: #fef3c7; color: #92400e; }
+.paymentStatus.unpaid { background: #fef3c7; color: #92400e; }
+.modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modalContent { background: white; padding: 2rem; border-radius: 12px; width: 100%; max-width: 450px; }
+.modalContent h3 { margin: 0 0 0.5rem 0; color: #1f2937; }
+.modalContent p { color: #6b7280; margin: 0 0 1rem 0; }
+.textarea { width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 8px; min-height: 100px; resize: vertical; margin-top: 0.5rem; }
+.textarea:focus { outline: none; border-color: #667eea; }
+.modalActions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; }
+.modalCancelBtn { padding: 0.75rem 1.5rem; background: white; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; }
+.modalCancelBtn:hover { background: #f3f4f6; }
+.modalConfirmBtn { padding: 0.75rem 1.5rem; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.modalConfirmBtn:hover { background: #dc2626; }
 @media (max-width: 1024px) { .grid { grid-template-columns: 1fr; } }

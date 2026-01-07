@@ -122,6 +122,18 @@ export const fetchOrders = createAsyncThunk(
   }
 );
 
+export const fetchOrderDetail = createAsyncThunk(
+  'seller/fetchOrderDetail',
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/seller/orders/${orderId}`);
+      return response.data.order || response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch order detail');
+    }
+  }
+);
+
 export const updateOrderItemStatus = createAsyncThunk(
   'seller/updateOrderItemStatus',
   async ({ orderId, itemId, status }, { rejectWithValue }) => {
@@ -236,19 +248,278 @@ export const fetchProductAnalytics = createAsyncThunk(
   }
 );
 
+// Performance Metrics
+export const fetchPerformanceMetrics = createAsyncThunk(
+  'seller/fetchPerformanceMetrics',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/dashboard/performance');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch performance metrics');
+    }
+  }
+);
+
+// Transactions
+export const fetchTransactions = createAsyncThunk(
+  'seller/fetchTransactions',
+  async (params, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/earnings/transactions', { params });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch transactions');
+    }
+  }
+);
+
+// Payout History
+export const fetchPayoutHistory = createAsyncThunk(
+  'seller/fetchPayoutHistory',
+  async (params, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/earnings/payouts', { params });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch payout history');
+    }
+  }
+);
+
+// Payout Settings
+export const fetchPayoutSettings = createAsyncThunk(
+  'seller/fetchPayoutSettings',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/payout-settings');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch payout settings');
+    }
+  }
+);
+
+export const updatePayoutSettings = createAsyncThunk(
+  'seller/updatePayoutSettings',
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await api.put('/seller/payout-settings', data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update payout settings');
+    }
+  }
+);
+
+// Business Info
+export const updateBusinessInfo = createAsyncThunk(
+  'seller/updateBusinessInfo',
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await api.put('/seller/store/business-info', data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update business info');
+    }
+  }
+);
+
+// Vacation Mode
+export const updateVacationMode = createAsyncThunk(
+  'seller/updateVacationMode',
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await api.put('/seller/store/vacation-mode', data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update vacation mode');
+    }
+  }
+);
+
+// Reports
+export const fetchSalesReport = createAsyncThunk(
+  'seller/fetchSalesReport',
+  async (params, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/reports/sales', { params });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch sales report');
+    }
+  }
+);
+
+export const fetchInventoryReport = createAsyncThunk(
+  'seller/fetchInventoryReport',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/reports/inventory');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch inventory report');
+    }
+  }
+);
+
+// Bulk Operations
+export const bulkUpdateStock = createAsyncThunk(
+  'seller/bulkUpdateStock',
+  async (updates, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/seller/products/bulk/stock', { updates });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to bulk update stock');
+    }
+  }
+);
+
+export const bulkUpdatePrices = createAsyncThunk(
+  'seller/bulkUpdatePrices',
+  async (updates, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/seller/products/bulk/prices', { updates });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to bulk update prices');
+    }
+  }
+);
+
+// Categories
+export const fetchCategories = createAsyncThunk(
+  'seller/fetchCategories',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/categories');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch categories');
+    }
+  }
+);
+
+// Verification
+export const fetchSellerVerification = createAsyncThunk(
+  'seller/fetchSellerVerification',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/verification');
+      return response.data.verification || null;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch verification status');
+    }
+  }
+);
+
+export const createVerificationPaymentIntent = createAsyncThunk(
+  'seller/createVerificationPaymentIntent',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/seller/verification/payment-intent');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to create payment intent');
+    }
+  }
+);
+
+export const submitSellerVerification = createAsyncThunk(
+  'seller/submitSellerVerification',
+  async (formData, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/seller/verification', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to submit verification');
+    }
+  }
+);
+
+// Seller Coupons
+export const fetchSellerCoupons = createAsyncThunk(
+  'seller/fetchSellerCoupons',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/coupons', { params });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch coupons');
+    }
+  }
+);
+
+export const createSellerCoupon = createAsyncThunk(
+  'seller/createSellerCoupon',
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/seller/coupons', data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to create coupon');
+    }
+  }
+);
+
+export const updateSellerCoupon = createAsyncThunk(
+  'seller/updateSellerCoupon',
+  async ({ id, ...data }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/seller/coupons/${id}`, data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update coupon');
+    }
+  }
+);
+
+export const deleteSellerCoupon = createAsyncThunk(
+  'seller/deleteSellerCoupon',
+  async (id, { rejectWithValue }) => {
+    try {
+      await api.delete(`/seller/coupons/${id}`);
+      return id;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete coupon');
+    }
+  }
+);
+
 const initialState = {
   dashboardStats: null,
   salesOverview: null,
+  performanceMetrics: null,
   products: [],
   currentProduct: null,
   selectedProduct: null,
+  categories: [],
   orders: [],
+  orderDetail: null,
   earnings: null,
+  transactions: [],
+  payoutHistory: [],
+  payoutSettings: null,
   store: null,
   reviews: [],
   analytics: null,
+  salesReport: null,
+  inventoryReport: null,
+  pagination: { total: 0, totalPages: 1, currentPage: 1 },
+  verification: null,
+  verificationPaymentIntent: null,
+  verificationLoading: false,
+  verificationError: null,
+  coupons: [],
+  couponPagination: { total: 0, totalPages: 1, currentPage: 1 },
+  couponsLoading: false,
+  couponsError: null,
   loading: false,
   detailsLoading: false,
+  orderDetailLoading: false,
   error: null,
 };
 
@@ -315,6 +586,18 @@ const sellerSlice = createSlice({
       .addCase(fetchOrders.fulfilled, (state, action) => {
         state.orders = action.payload.orders || action.payload;
       })
+      .addCase(fetchOrderDetail.pending, (state) => {
+        state.orderDetailLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchOrderDetail.fulfilled, (state, action) => {
+        state.orderDetailLoading = false;
+        state.orderDetail = action.payload;
+      })
+      .addCase(fetchOrderDetail.rejected, (state, action) => {
+        state.orderDetailLoading = false;
+        state.error = action.payload;
+      })
       // Earnings
       .addCase(fetchEarnings.fulfilled, (state, action) => {
         state.earnings = action.payload;
@@ -333,6 +616,120 @@ const sellerSlice = createSlice({
       // Analytics
       .addCase(fetchProductAnalytics.fulfilled, (state, action) => {
         state.analytics = action.payload;
+      })
+      // Performance Metrics
+      .addCase(fetchPerformanceMetrics.fulfilled, (state, action) => {
+        state.performanceMetrics = action.payload;
+      })
+      // Transactions
+      .addCase(fetchTransactions.fulfilled, (state, action) => {
+        state.transactions = action.payload.transactions || [];
+        state.pagination = {
+          total: action.payload.total,
+          totalPages: action.payload.totalPages,
+          currentPage: action.payload.currentPage,
+        };
+      })
+      // Payout History
+      .addCase(fetchPayoutHistory.fulfilled, (state, action) => {
+        state.payoutHistory = action.payload.payouts || [];
+        state.pagination = {
+          total: action.payload.total,
+          totalPages: action.payload.totalPages,
+          currentPage: action.payload.currentPage,
+        };
+      })
+      // Payout Settings
+      .addCase(fetchPayoutSettings.fulfilled, (state, action) => {
+        state.payoutSettings = action.payload.payoutSettings || action.payload;
+      })
+      .addCase(updatePayoutSettings.fulfilled, (state, action) => {
+        state.payoutSettings = action.payload.store || action.payload;
+      })
+      // Business Info & Vacation Mode
+      .addCase(updateBusinessInfo.fulfilled, (state, action) => {
+        state.store = action.payload.store || action.payload;
+      })
+      .addCase(updateVacationMode.fulfilled, (state, action) => {
+        state.store = action.payload.store || action.payload;
+      })
+      // Reports
+      .addCase(fetchSalesReport.fulfilled, (state, action) => {
+        state.salesReport = action.payload;
+      })
+      .addCase(fetchInventoryReport.fulfilled, (state, action) => {
+        state.inventoryReport = action.payload;
+      })
+      // Categories
+      .addCase(fetchCategories.fulfilled, (state, action) => {
+        state.categories = action.payload.categories || [];
+      })
+      // Verification
+      .addCase(fetchSellerVerification.pending, (state) => {
+        state.verificationLoading = true;
+        state.verificationError = null;
+      })
+      .addCase(fetchSellerVerification.fulfilled, (state, action) => {
+        state.verificationLoading = false;
+        state.verification = action.payload;
+      })
+      .addCase(fetchSellerVerification.rejected, (state, action) => {
+        state.verificationLoading = false;
+        state.verificationError = action.payload;
+      })
+      .addCase(createVerificationPaymentIntent.pending, (state) => {
+        state.verificationLoading = true;
+        state.verificationError = null;
+      })
+      .addCase(createVerificationPaymentIntent.fulfilled, (state, action) => {
+        state.verificationLoading = false;
+        state.verificationPaymentIntent = action.payload;
+      })
+      .addCase(createVerificationPaymentIntent.rejected, (state, action) => {
+        state.verificationLoading = false;
+        state.verificationError = action.payload;
+      })
+      .addCase(submitSellerVerification.pending, (state) => {
+        state.verificationLoading = true;
+        state.verificationError = null;
+      })
+      .addCase(submitSellerVerification.fulfilled, (state, action) => {
+        state.verificationLoading = false;
+        state.verification = action.payload.verification;
+      })
+      .addCase(submitSellerVerification.rejected, (state, action) => {
+        state.verificationLoading = false;
+        state.verificationError = action.payload;
+      })
+      // Seller Coupons
+      .addCase(fetchSellerCoupons.pending, (state) => {
+        state.couponsLoading = true;
+        state.couponsError = null;
+      })
+      .addCase(fetchSellerCoupons.fulfilled, (state, action) => {
+        state.couponsLoading = false;
+        state.coupons = action.payload.coupons || [];
+        state.couponPagination = {
+          total: action.payload.total || 0,
+          totalPages: action.payload.totalPages || 1,
+          currentPage: action.payload.currentPage || 1,
+        };
+      })
+      .addCase(fetchSellerCoupons.rejected, (state, action) => {
+        state.couponsLoading = false;
+        state.couponsError = action.payload;
+      })
+      .addCase(createSellerCoupon.fulfilled, (state, action) => {
+        state.coupons.unshift(action.payload.coupon);
+        state.couponPagination.total += 1;
+      })
+      .addCase(updateSellerCoupon.fulfilled, (state, action) => {
+        const updated = action.payload.coupon;
+        state.coupons = state.coupons.map((c) => (c._id === updated._id ? updated : c));
+      })
+      .addCase(deleteSellerCoupon.fulfilled, (state, action) => {
+        state.coupons = state.coupons.filter((c) => c._id !== action.payload);
+        state.couponPagination.total = Math.max(0, state.couponPagination.total - 1);
       });
   },
 });

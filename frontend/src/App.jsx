@@ -24,12 +24,19 @@ import AdminCustomerList from './pages/admin/customers/CustomerList.jsx';
 import AdminAnalytics from './pages/admin/analytics/Analytics.jsx';
 import AdminCoupons from './pages/admin/marketing/Coupons.jsx';
 import AdminSettings from './pages/admin/settings/Settings.jsx';
+import AdminReviewList from './pages/admin/reviews/ReviewList.jsx';
+import AdminCategoryList from './pages/admin/categories/CategoryList.jsx';
 import SellerDashboard from './pages/seller/SellerDashboard.jsx';
 import SellerProductList from './pages/seller/products/ProductList.jsx';
 import SellerAddProduct from './pages/seller/products/AddProduct.jsx';
 import SellerOrderList from './pages/seller/orders/OrderList.jsx';
 import SellerOrderDetail from './pages/seller/orders/OrderDetail.jsx';
 import SellerEarnings from './pages/seller/earnings/Earnings.jsx';
+import SellerPayouts from './pages/seller/earnings/Payouts.jsx';
+import SellerTransactions from './pages/seller/earnings/Transactions.jsx';
+import SellerReports from './pages/seller/reports/Reports.jsx';
+import SellerVerification from './pages/seller/verification/Verification.jsx';
+import SellerCoupons from './pages/seller/marketing/Coupons.jsx';
 import SellerStoreSettings from './pages/seller/store/StoreSettings.jsx';
 import SellerReviews from './pages/seller/reviews/Reviews.jsx';
 import SellerAnalytics from './pages/seller/analytics/Analytics.jsx';
@@ -75,7 +82,7 @@ function App() {
         <Route path="/dashboard" element={<Layout><PrivateRoute><UserDashboard /></PrivateRoute></Layout>} />
         <Route path="/wishlist" element={<Layout><PrivateRoute><Wishlist /></PrivateRoute></Layout>} />
         
-        <Route path="/admin" element={<PrivateRoute><AdminLayout /></PrivateRoute>}>
+         <Route path="/admin" element={<PrivateRoute><AdminLayout /></PrivateRoute>}>
           <Route index element={<AdminDashboard />} />
           <Route path="analytics" element={<AdminAnalytics />} />
           <Route path="sellers" element={<AdminSellerList />} />
@@ -83,8 +90,8 @@ function App() {
           <Route path="sellers/verified" element={<AdminSellerList />} />
           <Route path="sellers/:id" element={<AdminSellerDetail />} />
           <Route path="products" element={<AdminProductList />} />
-          <Route path="products/categories" element={<AdminProductList />} />
-          <Route path="products/reviews" element={<AdminProductList />} />
+          <Route path="categories" element={<AdminCategoryList />} />
+          <Route path="reviews" element={<AdminReviewList />} />
           <Route path="products/low-stock" element={<AdminProductList />} />
           <Route path="orders" element={<AdminOrderList />} />
           <Route path="orders/pending" element={<AdminOrderList />} />
@@ -117,13 +124,18 @@ function App() {
           <Route path="orders/returns" element={<SellerOrderList />} />
           <Route path="orders/:id" element={<SellerOrderDetail />} />
           <Route path="earnings" element={<SellerEarnings />} />
-          <Route path="earnings/transactions" element={<SellerEarnings />} />
-          <Route path="earnings/payouts" element={<SellerEarnings />} />
-          <Route path="earnings/reports" element={<SellerEarnings />} />
+          <Route path="earnings/overview" element={<SellerEarnings />} />
+          <Route path="earnings/transactions" element={<SellerTransactions />} />
+          <Route path="earnings/payouts" element={<SellerPayouts />} />
+          <Route path="reports" element={<SellerReports />} />
+          <Route path="reports/sales" element={<SellerReports />} />
+          <Route path="reports/inventory" element={<SellerReports />} />
+          <Route path="verification" element={<SellerVerification />} />
           <Route path="reviews" element={<SellerReviews />} />
           <Route path="analytics" element={<SellerAnalytics />} />
           <Route path="marketing/promotions" element={<SellerAnalytics />} />
           <Route path="marketing/discounts" element={<SellerAnalytics />} />
+          <Route path="marketing/coupons" element={<SellerCoupons />} />
           <Route path="store" element={<SellerStoreSettings />} />
           <Route path="settings" element={<SellerStoreSettings />} />
         </Route>

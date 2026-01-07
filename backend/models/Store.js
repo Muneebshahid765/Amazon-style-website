@@ -20,6 +20,50 @@ const ratingSchema = new Schema(
   { _id: false }
 );
 
+const bankAccountSchema = new Schema(
+  {
+    accountHolderName: { type: String, trim: true },
+    accountNumber: { type: String, trim: true },
+    bankName: { type: String, trim: true },
+    routingNumber: { type: String, trim: true },
+    swiftCode: { type: String, trim: true },
+    iban: { type: String, trim: true },
+    country: { type: String, trim: true },
+    isVerified: { type: Boolean, default: false },
+    verifiedAt: { type: Date },
+  },
+  { _id: false }
+);
+
+const paypalAccountSchema = new Schema(
+  {
+    email: { type: String, trim: true },
+    isVerified: { type: Boolean, default: false },
+    verifiedAt: { type: Date },
+  },
+  { _id: false }
+);
+
+const businessInfoSchema = new Schema(
+  {
+    businessName: { type: String, trim: true },
+    businessType: { type: String, enum: ['individual', 'company', 'partnership'], default: 'individual' },
+    taxId: { type: String, trim: true },
+    vatNumber: { type: String, trim: true },
+    registrationNumber: { type: String, trim: true },
+    address: {
+      street: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      postalCode: { type: String, trim: true },
+      country: { type: String, trim: true },
+    },
+    phone: { type: String, trim: true },
+    email: { type: String, trim: true },
+  },
+  { _id: false }
+);
+
 const storeSchema = new Schema(
   {
     seller: {
@@ -69,6 +113,11 @@ const storeSchema = new Schema(
       default: 0,
       min: 0,
     },
+    totalRevenue: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     commission: {
       type: Number,
       default: 10,
@@ -79,6 +128,12 @@ const storeSchema = new Schema(
       type: Boolean,
       default: true,
     },
+    verificationStatus: {
+      type: String,
+      enum: ['pending', 'verified', 'rejected', 'suspended'],
+      default: 'pending',
+    },
+    verifiedAt: { type: Date },
     socialMedia: socialMediaSchema,
     returnPolicy: {
       type: String,
@@ -89,6 +144,54 @@ const storeSchema = new Schema(
       type: String,
       trim: true,
       maxlength: 2000,
+    },
+    // Payment & Payout Settings
+    payoutMethod: {
+      type: String,
+      enum: ['bank_transfer', 'paypal', 'stripe'],
+      default: 'bank_transfer',
+    },
+    bankAccount: bankAccountSchema,
+    paypalAccount: paypalAccountSchema,
+    stripeAccountId: { type: String, trim: true },
+    minimumPayout: {
+      type: Number,
+      default: 50,
+      min: 0,
+    },
+    autoPayoutEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    autoPayoutDay: {
+      type: Number,
+      min: 1,
+      max: 28,
+      default: 1,
+    },
+    // Business Information
+    businessInfo: businessInfoSchema,
+    // Seller Performance Metrics
+    metrics: {
+      responseTime: { type: Number, default: 0 },
+      fulfillmentRate: { type: Number, default: 100 },
+      returnRate: { type: Number, default: 0 },
+      cancellationRate: { type: Number, default: 0 },
+      onTimeShippingRate: { type: Number, default: 100 },
+    },
+    // Seller Level/Tier
+    sellerLevel: {
+      type: String,
+      enum: ['new', 'bronze', 'silver', 'gold', 'platinum'],
+      default: 'new',
+    },
+    levelUpdatedAt: { type: Date },
+    // Vacation Mode
+    vacationMode: {
+      isEnabled: { type: Boolean, default: false },
+      startDate: { type: Date },
+      endDate: { type: Date },
+      message: { type: String, maxlength: 500 },
     },
   },
   { timestamps: true }

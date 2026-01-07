@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchDashboardStats, fetchRevenueAnalytics } from '../../redux/slices/adminSlice';
-import { FiDollarSign, FiShoppingCart, FiUsers, FiTrendingUp, FiTrendingDown } from 'react-icons/fi';
+import { FiDollarSign, FiShoppingCart, FiUsers, FiTrendingUp, FiTrendingDown, FiBriefcase } from 'react-icons/fi';
 import ThreeRevenueChart from '../../components/dashboard/ThreeRevenueChart';
 import styles from './AdminDashboard.module.css';
 
@@ -9,10 +9,15 @@ const AdminDashboard = () => {
   const dispatch = useDispatch();
   const { dashboardStats, revenueAnalytics, loading } = useSelector((state) => state.admin);
 
+  const [period, setPeriod] = useState('30days');
+
   useEffect(() => {
     dispatch(fetchDashboardStats());
-    dispatch(fetchRevenueAnalytics('30days'));
   }, [dispatch]);
+
+  useEffect(() => {
+    dispatch(fetchRevenueAnalytics(period));
+  }, [dispatch, period]);
 
   const stats = [
     {
@@ -40,7 +45,7 @@ const AdminDashboard = () => {
       title: 'Pending Sellers',
       value: dashboardStats?.sellers?.pending || 0,
       change: -2.4,
-      // icon: FiStore,
+      icon: FiBriefcase,
       color: '#f59e0b',
     },
   ];
@@ -95,9 +100,13 @@ const AdminDashboard = () => {
         <div className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <h2>Revenue Overview</h2>
-            <select className={styles.periodSelector}>
+            <select
+              className={styles.periodSelector}
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+            >
               <option value="7days">Last 7 days</option>
-              <option value="30days" selected>Last 30 days</option>
+              <option value="30days">Last 30 days</option>
               <option value="90days">Last 90 days</option>
               <option value="1year">Last year</option>
             </select>

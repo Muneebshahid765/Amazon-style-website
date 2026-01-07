@@ -1,22 +1,10 @@
-import Stripe from 'stripe';
 import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
 import Order from '../models/Order.js';
 import Coupon from '../models/Coupon.js';
-
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-let stripeClient = null;
-if (stripeSecretKey) {
-  stripeClient = new Stripe(stripeSecretKey);
-}
-
-const getItemProductId = (item) => {
-  if (!item?.product) return null;
-  if (typeof item.product === 'string') return item.product;
-  if (item.product._id) return item.product._id.toString();
-  if (item.product.toString) return item.product.toString();
-  return null;
-};
+import { stripeClient } from '../config/stripe.js';
+import { getItemProductId } from '../utils/cartHelpers.js';
+import { sendEmail } from '../utils/sendEmail.js';
 
 const validateCart = async (req, res, next) => {
   try {
@@ -92,7 +80,7 @@ const applyCoupon = async (req, res, next) => {
     const coupon = await Coupon.findOne({
       code: code.toUpperCase(),
       isActive: true,
-      expiryDate: { $gte: new Date() },
+      expiresAt: { $gte: new Date() },
     });
 
     if (!coupon) {
@@ -103,17 +91,19 @@ const applyCoupon = async (req, res, next) => {
       return res.status(400).json({ message: 'Coupon usage limit reached' });
     }
 
-    if (coupon.minPurchase && cart.subtotal < coupon.minPurchase) {
+    const minOrder = coupon.minOrderValue || coupon.minPurchase;
+    if (minOrder && cart.subtotal < minOrder) {
       return res.status(400).json({
-        message: `Minimum purchase of Rs. ${coupon.minPurchase} required`,
+        message: `Minimum purchase of Rs. ${minOrder} required`,
       });
     }
 
     let discount = 0;
     if (coupon.discountType === 'percentage') {
       discount = (cart.subtotal * coupon.discountValue) / 100;
-      if (coupon.maxDiscount) {
-        discount = Math.min(discount, coupon.maxDiscount);
+      const maxDiscount = coupon.maxDiscountValue ?? coupon.maxDiscount;
+      if (maxDiscount) {
+        discount = Math.min(discount, maxDiscount);
       }
     } else {
       discount = coupon.discountValue;
@@ -407,7 +397,7 @@ const createOrder = async (req, res, next) => {
     await cart.save();
     console.log(`[Order] Cart cleared`);
 
-    res.status(201).json({
+    const responsePayload = {
       message: 'Order created successfully',
       order: {
         _id: order._id,
@@ -415,7 +405,81 @@ const createOrder = async (req, res, next) => {
         totalAmount: order.totalPrice,
         status: order.status,
       },
-    });
+    };
+
+    const recipientEmail = userId ? req.user.email : guestEmail;
+    if (recipientEmail) {
+      const currencySymbol =
+        order.currency === 'USD' ? '$' : order.currency === 'PKR' ? 'Rs. ' : `${order.currency} `;
+      const formatCurrency = (value = 0) => `${currencySymbol}${Number(value || 0).toFixed(2)}`;
+      const itemsHtml = order.orderItems
+        .map(
+          (item) => `
+            <tr>
+              <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">${item.title}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;">${item.quantity}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${formatCurrency(item.price)}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${formatCurrency(
+                item.price * item.quantity
+              )}</td>
+            </tr>`
+        )
+        .join('');
+
+      const copyHtml = `
+        <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:640px;margin:0 auto;color:#111827;">
+          <h2 style="color:#111827;">Thanks for your order, ${mappedAddress.fullName || 'Customer'}!</h2>
+          <p>Your order <strong>${order.orderNumber}</strong> has been received. Below is a quick summary.</p>
+          <div style="margin:24px 0;padding:16px;border:1px solid #e5e7eb;border-radius:12px;background:#f9fafb;">
+            <p style="margin:4px 0;"><strong>Order Date:</strong> ${order.createdAt.toDateString()}</p>
+            <p style="margin:4px 0;"><strong>Payment Method:</strong> ${
+              order.paymentCardBrand
+                ? `${order.paymentCardBrand.toUpperCase()}${order.paymentCardLast4 ? ` •••• ${order.paymentCardLast4}` : ''}`
+                : order.paymentMethod?.toUpperCase()
+            }</p>
+            <p style="margin:4px 0;"><strong>Shipping Address:</strong> ${mappedAddress.street}, ${mappedAddress.city}, ${
+        mappedAddress.state
+      } ${mappedAddress.postalCode}</p>
+          </div>
+          <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+            <thead>
+              <tr style="background:#111827;color:#fff;text-align:left;">
+                <th style="padding:10px 12px;border-top-left-radius:6px;">Item</th>
+                <th style="padding:10px 12px;text-align:center;">Qty</th>
+                <th style="padding:10px 12px;text-align:right;">Price</th>
+                <th style="padding:10px 12px;border-top-right-radius:6px;text-align:right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          <div style="text-align:right;margin-bottom:24px;">
+            <p style="margin:4px 0;">Items Total: <strong>${formatCurrency(order.itemsPrice)}</strong></p>
+            <p style="margin:4px 0;">Tax: <strong>${formatCurrency(order.taxPrice)}</strong></p>
+            <p style="margin:4px 0;">Shipping: <strong>${formatCurrency(order.shippingPrice)}</strong></p>
+            ${
+              order.discount
+                ? `<p style="margin:4px 0;">Discount: <strong>- ${formatCurrency(order.discount)}</strong></p>`
+                : ''
+            }
+            <p style="margin:8px 0;font-size:1.1rem;">Grand Total: <strong>${formatCurrency(order.totalPrice)}</strong></p>
+          </div>
+          <p>You can download your invoice anytime from the order success page or dashboard.</p>
+          <p style="margin-top:24px;color:#6b7280;">Team NovaMart</p>
+        </div>
+      `;
+
+      sendEmail({
+        to: recipientEmail,
+        subject: `Your NovaMart Order ${order.orderNumber}`,
+        html: copyHtml,
+      }).catch((emailError) => {
+        console.error('[Order] Failed to send confirmation email:', emailError.message);
+      });
+    }
+
+    res.status(201).json(responsePayload);
   } catch (error) {
     next(error);
   }

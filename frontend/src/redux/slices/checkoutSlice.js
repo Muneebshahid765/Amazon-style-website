@@ -151,9 +151,12 @@ const checkoutSlice = createSlice({
         state.error = action.payload;
       })
       .addCase(applyCoupon.fulfilled, (state, action) => {
+        const discount = action.payload.coupon.discount || 0;
         state.couponApplied = action.payload.coupon;
-        state.orderSummary.discount = action.payload.coupon.discount;
-        state.orderSummary.total = action.payload.newTotal;
+        state.orderSummary.discount = discount;
+        const { subtotal, tax, shippingCost } = state.orderSummary;
+        const grossTotal = subtotal + tax + shippingCost;
+        state.orderSummary.total = Math.max(0, grossTotal - discount);
       })
       .addCase(calculateCheckout.fulfilled, (state, action) => {
         state.orderSummary = action.payload;

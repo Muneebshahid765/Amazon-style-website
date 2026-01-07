@@ -26,8 +26,8 @@ const buildNav = (isMultiVendor) => [
     children: [
       { label: 'All Products', path: '/admin/products' },
       { label: 'Add Product', path: '/admin/products/new' },
-      { label: 'Categories', path: '/admin/products/categories' },
-      { label: 'Brands', path: '/admin/products/brands' },
+      { label: 'Categories', path: '/admin/categories' },
+      { label: 'Brands', path: '/admin/brands' },
     ],
   },
   {
@@ -40,9 +40,9 @@ const buildNav = (isMultiVendor) => [
     ],
   },
   { label: 'Customers', icon: FiUsers, path: '/admin/customers' },
-  ...(isMultiVendor ? [{ label: 'Sellers', icon: FiUserCheck, path: '/admin/sellers' }] : []),
+  { label: 'Sellers', icon: FiUserCheck, path: '/admin/sellers' },
   { label: 'Reviews', icon: FiStar, path: '/admin/reviews' },
-  { label: 'Coupons', icon: FiTag, path: '/admin/coupons' },
+  { label: 'Coupons', icon: FiTag, path: '/admin/marketing/coupons' },
   { label: 'Analytics', icon: FiBarChart2, path: '/admin/analytics' },
   { label: 'Settings', icon: FiSettings, path: '/admin/settings' },
 ];

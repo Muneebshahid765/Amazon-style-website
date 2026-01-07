@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { updateOrderItemStatus, addTrackingInfo } from '../../../redux/slices/sellerSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchOrderDetail,
+  updateOrderItemStatus,
+  addTrackingInfo,
+} from '../../../redux/slices/sellerSlice';
 import { FiArrowLeft, FiTruck, FiPackage, FiUser, FiMapPin } from 'react-icons/fi';
 import styles from './OrderDetail.module.css';
 
@@ -9,39 +13,36 @@ const OrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { orderDetail, orderDetailLoading } = useSelector((state) => state.seller);
   const [trackingData, setTrackingData] = useState({ trackingNumber: '', carrier: '' });
 
   useEffect(() => {
-    setOrder({
-      _id: id, orderNumber: 'ORD-12345', status: 'processing', createdAt: new Date().toISOString(),
-      user: { firstName: 'John', lastName: 'Doe', email: 'john@example.com' },
-      shippingAddress: { street: '123 Main St', city: 'New York', state: 'NY', zipCode: '10001', country: 'USA' },
-      orderItems: [
-        { _id: '1', title: 'Your Product', price: 99.99, quantity: 2, image: '/placeholder.png', itemStatus: 'processing' },
-      ],
-      totalPrice: 199.98
-    });
-    setLoading(false);
+    dispatch(fetchOrderDetail(id));
   }, [id]);
 
   const handleStatusChange = async (itemId, newStatus) => {
     await dispatch(updateOrderItemStatus({ orderId: id, itemId, status: newStatus }));
-    setOrder({
-      ...order,
-      orderItems: order.orderItems.map(item => item._id === itemId ? { ...item, itemStatus: newStatus } : item)
-    });
+    dispatch(fetchOrderDetail(id));
   };
 
   const handleAddTracking = async (itemId) => {
     if (!trackingData.trackingNumber || !trackingData.carrier) return;
-    await dispatch(addTrackingInfo({ orderId: id, itemId, trackingData }));
+    await dispatch(addTrackingInfo({ orderId: id, itemId, trackingInfo: trackingData }));
     setTrackingData({ trackingNumber: '', carrier: '' });
+    dispatch(fetchOrderDetail(id));
   };
 
-  if (loading) return <div className={styles.loading}>Loading...</div>;
-  if (!order) return <div className={styles.error}>Order not found</div>;
+  if (orderDetailLoading) return <div className={styles.loading}>Loading...</div>;
+  if (!orderDetail) return <div className={styles.error}>Order not found</div>;
+
+  const order = orderDetail;
+  const customerName =
+    order.user
+      ? `${order.user.firstName || ''} ${order.user.lastName || ''}`.trim()
+      : order.shippingAddress?.fullName || 'Customer';
+  const customerEmail = order.user?.email || order.guestEmail || 'N/A';
+  const customerPhone = order.user?.phone || order.shippingAddress?.phone || order.guestPhone || 'N/A';
+  const shipping = order.shippingAddress || {};
 
   return (
     <div className={styles.container}>
@@ -56,7 +57,7 @@ const OrderDetail = () => {
         <div className={styles.mainSection}>
           <div className={styles.card}>
             <h3><FiPackage /> Your Items in This Order</h3>
-            {order.orderItems.map((item) => (
+            {order.orderItems?.map((item) => (
               <div key={item._id} className={styles.orderItem}>
                 <img src={item.image} alt={item.title} className={styles.itemImage} />
                 <div className={styles.itemInfo}>
@@ -77,7 +78,7 @@ const OrderDetail = () => {
           </div>
 
           <div className={styles.card}>
-            <h3><FiTruck /> Add Tracking Information</h3>
+            <h3><FiTruck /> Shipping Information</h3>
             <div className={styles.trackingForm}>
               <input type="text" placeholder="Tracking Number" value={trackingData.trackingNumber} onChange={(e) => setTrackingData({...trackingData, trackingNumber: e.target.value})} className={styles.input} />
               <select value={trackingData.carrier} onChange={(e) => setTrackingData({...trackingData, carrier: e.target.value})} className={styles.select}>
@@ -95,15 +96,20 @@ const OrderDetail = () => {
         <div className={styles.sideSection}>
           <div className={styles.card}>
             <h3><FiUser /> Customer</h3>
-            <p className={styles.customerName}>{order.user.firstName} {order.user.lastName}</p>
-            <p className={styles.customerEmail}>{order.user.email}</p>
+            <p className={styles.customerName}>{customerName}</p>
+            <p className={styles.customerDetail}>{customerEmail}</p>
+            <p className={styles.customerDetail}>{customerPhone}</p>
           </div>
 
           <div className={styles.card}>
             <h3><FiMapPin /> Shipping Address</h3>
-            <p>{order.shippingAddress.street}</p>
-            <p>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}</p>
-            <p>{order.shippingAddress.country}</p>
+            <p>{shipping.street}</p>
+            <p>
+              {shipping.city}
+              {shipping.state ? `, ${shipping.state}` : ''}{' '}
+              {shipping.postalCode || ''}
+            </p>
+            <p>{shipping.country}</p>
           </div>
 
           <div className={styles.card}>

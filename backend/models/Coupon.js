@@ -9,12 +9,14 @@ const couponSchema = new Schema(
     discountType: { type: String, enum: ['percentage', 'flat'], default: 'percentage' },
     discountValue: { type: Number, required: true },
     maxDiscountValue: { type: Number },
+    maxDiscount: { type: Number }, // legacy compatibility
     minOrderValue: { type: Number, default: 0 },
     appliesTo: {
       scope: { type: String, enum: ['all', 'category', 'product', 'user'], default: 'all' },
       categories: [{ type: Schema.Types.ObjectId, ref: 'Category' }],
       products: [{ type: Schema.Types.ObjectId, ref: 'Product' }],
     },
+    seller: { type: Schema.Types.ObjectId, ref: 'User' },
     usageLimit: { type: Number, default: 0 }, // 0 -> unlimited
     usageLimitPerUser: { type: Number, default: 0 },
     usedCount: { type: Number, default: 0 },
