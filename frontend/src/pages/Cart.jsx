@@ -3,17 +3,27 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiTrash2, FiHeart, FiShoppingBag, FiMinus, FiPlus } from 'react-icons/fi';
 import { fetchCart, removeFromCart, clearCart, updateCartItemQuantity } from '../redux/slices/cartSlice';
+import { applyCoupon, removeCoupon, clearCouponError } from '../redux/slices/checkoutSlice';
 import styles from '../styles/Cart.module.css';
 
 const Cart = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { items, subtotal, status } = useSelector((state) => state.cart);
+  const { couponApplied, couponError } = useSelector((state) => state.checkout);
   const [couponCode, setCouponCode] = useState('');
 
   useEffect(() => {
     dispatch(fetchCart());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!couponError) return undefined;
+    const timer = setTimeout(() => {
+      dispatch(clearCouponError());
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [couponError, dispatch]);
 
   const handleQuantityChange = (productId, newQuantity) => {
     if (newQuantity < 1) return;
@@ -28,6 +38,19 @@ const Cart = () => {
     if (window.confirm('Are you sure you want to clear your cart?')) {
       dispatch(clearCart());
     }
+  };
+
+  const handleApplyCoupon = () => {
+    if (!couponCode.trim()) {
+      alert('Please enter a coupon code');
+      return;
+    }
+    dispatch(applyCoupon(couponCode.trim()));
+  };
+
+  const handleRemoveCoupon = () => {
+    dispatch(removeCoupon());
+    setCouponCode('');
   };
 
   if (status === 'loading' && items.length === 0) {
@@ -54,7 +77,8 @@ const Cart = () => {
 
   const estimatedTax = subtotal * 0.18;
   const shipping = subtotal > 5000 ? 0 : 200;
-  const total = subtotal + estimatedTax + shipping;
+  const discount = couponApplied?.discount || 0;
+  const total = Math.max(0, subtotal + estimatedTax + shipping - discount);
 
   return (
     <div className={styles.cartContainer}>
@@ -149,10 +173,29 @@ const Cart = () => {
               type="text"
               placeholder="Coupon code"
               value={couponCode}
-              onChange={(e) => setCouponCode(e.target.value)}
+              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
             />
-            <button>Apply</button>
+            <button onClick={handleApplyCoupon}>Apply</button>
           </div>
+          {couponError && <div className={styles.couponError}>{couponError}</div>}
+          {couponApplied && (
+            <div className={styles.appliedCoupon}>
+              <div>
+                Applied: <strong>{couponApplied.code}</strong>{' '}
+                {couponApplied.discountType === 'percentage'
+                  ? `${couponApplied.discountValue}%`
+                  : `Rs. ${couponApplied.discountValue}`}
+              </div>
+              <button type="button" onClick={handleRemoveCoupon}>Remove</button>
+            </div>
+          )}
+
+          {discount > 0 && (
+            <div className={styles.summaryRow}>
+              <span>Coupon Discount:</span>
+              <span>- Rs. {discount.toFixed(2)}</span>
+            </div>
+          )}
 
           <div className={`${styles.summaryRow} ${styles.total}`}>
             <strong>Total:</strong>

@@ -16,6 +16,7 @@ const initialState = {
     total: 0,
   },
   availableCoupons: [],
+  couponError: null,
   status: 'idle',
   error: null,
 };
@@ -52,7 +53,6 @@ export const applyCoupon = createAsyncThunk(
     }
   }
 );
-
 export const calculateCheckout = createAsyncThunk(
   'checkout/calculate',
   async (shippingMethod, { rejectWithValue }) => {
@@ -122,6 +122,10 @@ const checkoutSlice = createSlice({
       state.couponApplied = null;
       state.orderSummary.discount = 0;
       state.orderSummary.total = state.orderSummary.subtotal + state.orderSummary.tax + state.orderSummary.shippingCost;
+      state.couponError = null;
+    },
+    clearCouponError(state) {
+      state.couponError = null;
     },
     resetCheckout(state) {
       return initialState;
@@ -150,6 +154,9 @@ const checkoutSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload;
       })
+      .addCase(applyCoupon.pending, (state) => {
+        state.couponError = null;
+      })
       .addCase(applyCoupon.fulfilled, (state, action) => {
         const discount = action.payload.coupon.discount || 0;
         state.couponApplied = action.payload.coupon;
@@ -157,6 +164,12 @@ const checkoutSlice = createSlice({
         const { subtotal, tax, shippingCost } = state.orderSummary;
         const grossTotal = subtotal + tax + shippingCost;
         state.orderSummary.total = Math.max(0, grossTotal - discount);
+        state.couponError = null;
+      })
+      .addCase(applyCoupon.rejected, (state, action) => {
+        state.couponApplied = null;
+        state.orderSummary.discount = 0;
+        state.couponError = action.payload;
       })
       .addCase(calculateCheckout.fulfilled, (state, action) => {
         state.orderSummary = action.payload;
@@ -176,6 +189,7 @@ export const {
   setShippingMethod,
   setPaymentMethod,
   removeCoupon,
+  clearCouponError,
   resetCheckout,
   nextStep,
   previousStep,
