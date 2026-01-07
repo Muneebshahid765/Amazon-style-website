@@ -1,17 +1,44 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FiCheckCircle, FiPackage, FiTruck, FiDownload } from 'react-icons/fi';
+import { useSelector } from 'react-redux';
 import styles from '../styles/OrderSuccess.module.css';
+import api from '../services/api';
 
 const OrderSuccess = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated } = useSelector((state) => state.auth);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     if (!orderId) {
       navigate('/');
     }
   }, [orderId, navigate]);
+
+  const handleDownloadInvoice = async () => {
+    if (!orderId) return;
+    try {
+      setIsDownloading(true);
+      const response = await api.get(`/orders/${orderId}/invoice`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `invoice-${orderId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Unable to download invoice right now.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <div className={styles.successContainer}>
@@ -77,13 +104,22 @@ const OrderSuccess = () => {
         </div>
 
         <div className={styles.actions}>
-          <Link to={`/dashboard?tab=orders`} className={styles.primaryBtn}>
-            View Order Details
-          </Link>
-          <button className={styles.secondaryBtn}>
-            <FiDownload /> Download Invoice
+          {isAuthenticated && (
+            <Link to="/dashboard?tab=orders" className={styles.primaryBtn}>
+              View Order Details
+            </Link>
+          )}
+          <button className={styles.secondaryBtn} onClick={handleDownloadInvoice} disabled={isDownloading}>
+            <FiDownload /> {isDownloading ? 'Preparing...' : 'Download Invoice'}
           </button>
         </div>
+
+        {!isAuthenticated && (
+          <p className={styles.guestNotice}>
+            Your order details and invoice have been emailed to you. If you don't see the email, please
+            check your spam folder or contact support.
+          </p>
+        )}
 
         <Link to="/products" className={styles.continueShoppingLink}>
           Continue Shopping

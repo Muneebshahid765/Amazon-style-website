@@ -18,6 +18,10 @@ export const fetchCart = createAsyncThunk('cart/fetch', async (_, { rejectWithVa
     const { data } = await api.get('/users/cart');
     return data.cart;
   } catch (error) {
+    // Don't reject if user is not authenticated - guest cart will be created on first add
+    if (error.response?.status === 401) {
+      return { items: [], subtotal: 0 };
+    }
     return rejectWithValue(error.response?.data?.message || 'Unable to fetch cart');
   }
 });

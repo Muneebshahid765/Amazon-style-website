@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchDashboardStats, fetchSalesOverview } from '../../redux/slices/sellerSlice';
 import { FiDollarSign, FiShoppingCart, FiPackage, FiStar, FiTrendingUp, FiTrendingDown, FiAlertCircle } from 'react-icons/fi';
@@ -7,12 +7,16 @@ import styles from './SellerDashboard.module.css';
 
 const SellerDashboard = () => {
   const dispatch = useDispatch();
+  const [period, setPeriod] = useState('30days');
   const { dashboardStats, salesOverview, loading } = useSelector((state) => state.seller);
 
   useEffect(() => {
     dispatch(fetchDashboardStats());
-    dispatch(fetchSalesOverview('30days'));
   }, [dispatch]);
+
+  useEffect(() => {
+    dispatch(fetchSalesOverview(period));
+  }, [dispatch, period]);
 
   const stats = [
     {
@@ -116,9 +120,13 @@ const SellerDashboard = () => {
         <div className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <h2>Sales Overview</h2>
-            <select className={styles.periodSelector}>
+            <select
+              className={styles.periodSelector}
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+            >
               <option value="7days">Last 7 days</option>
-              <option value="30days" selected>Last 30 days</option>
+              <option value="30days">Last 30 days</option>
               <option value="90days">Last 90 days</option>
             </select>
           </div>

@@ -1,5 +1,7 @@
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
+import PDFDocument from 'pdfkit';
+import stream from 'stream';
 
 const getMyOrders = async (req, res, next) => {
   try {
@@ -307,6 +309,210 @@ const processRefund = async (req, res, next) => {
   }
 };
 
+const getOrderInvoice = async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id).populate('user', 'firstName lastName email');
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const isOwner =
+      (req.user && order.user && order.user._id.toString() === req.user._id.toString()) ||
+      (!order.user && req.guestId && req.guestId === order.guestId);
+
+    if (!isOwner && (!req.user || req.user.role !== 'admin')) {
+      return res.status(403).json({ message: 'Not authorized to access this invoice' });
+    }
+
+    const currencySymbol =
+      order.currency === 'USD' ? '$' : order.currency === 'PKR' ? 'Rs. ' : `${order.currency} `;
+    const formatCurrency = (value = 0) => `${currencySymbol}${Number(value || 0).toFixed(2)}`;
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+
+    const filename = `invoice-${order.orderNumber || order._id}.pdf`;
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+    res.setHeader('Content-Type', 'application/pdf');
+
+    const passthrough = new stream.PassThrough();
+    doc.pipe(passthrough);
+    passthrough.pipe(res);
+
+    // Header
+    doc
+      .fillColor('#1f2937')
+      .fontSize(24)
+      .text('NovaMart', { align: 'left' })
+      .moveUp()
+      .fontSize(10)
+      .fillColor('#4b5563')
+      .text('support@novamart.com\n+92 300 1234567', { align: 'right' })
+      .moveDown(1.5);
+
+    doc
+      .moveTo(40, doc.y)
+      .lineTo(doc.page.width - 40, doc.y)
+      .strokeColor('#e5e7eb')
+      .stroke();
+
+    doc.moveDown();
+
+    // Order meta blocks
+    const billing = order.billingAddress || order.shippingAddress;
+    const blockWidth = doc.page.width / 2 - 60;
+    const lineHeight = 14;
+    const drawInfoBlock = (x, y, title, rows) => {
+      const blockHeight = rows.length * lineHeight + 34;
+      doc
+        .save()
+        .roundedRect(x, y, blockWidth, blockHeight, 8)
+        .fill('#f8fafc')
+        .restore();
+
+      doc
+        .fillColor('#1f2937')
+        .fontSize(12)
+        .text(title, x + 14, y + 12);
+
+      doc
+        .fontSize(11)
+        .fillColor('#4b5563');
+
+      rows.forEach((row, idx) => {
+        doc.text(row, x + 14, y + 30 + idx * lineHeight);
+      });
+
+      doc.fillColor('#111827');
+      return y + blockHeight;
+    };
+
+    const metaY = doc.y + 10;
+    const cardLabel = order.paymentCardBrand
+      ? `${order.paymentCardBrand.toUpperCase()}${order.paymentCardLast4 ? ` •••• ${order.paymentCardLast4}` : ''}`
+      : null;
+    const paymentMethodLabel = cardLabel || (order.paymentMethod ? order.paymentMethod.toUpperCase() : 'N/A');
+
+    const leftRows = [
+      `Invoice #: ${order.orderNumber || order._id}`,
+      `Order Date: ${order.createdAt.toDateString()}`,
+      `Payment Method: ${paymentMethodLabel}`,
+      `Payment Status: ${order.isPaid ? 'Paid' : 'Pending'}`,
+      order.isPaid ? `Paid On: ${order.paidAt?.toDateString() || 'N/A'}` : null,
+    ].filter(Boolean);
+    drawInfoBlock(40, metaY, 'Invoice Details', leftRows);
+
+    const rightRows = [
+      billing.fullName,
+      billing.street,
+      `${billing.city}, ${billing.state} ${billing.postalCode}`,
+      billing.country,
+      `Phone: ${billing.phone}`,
+    ];
+    const blockBottom = drawInfoBlock(doc.page.width / 2 + 20, metaY, 'Bill To', rightRows);
+
+    doc.y = blockBottom + 20;
+
+    // Items table header
+    const tableTop = doc.y;
+    const columnPositions = { item: 40, qty: 330, price: 390, total: 470 };
+
+    doc
+      .fontSize(11)
+      .fillColor('#ffffff')
+      .rect(40, tableTop - 5, doc.page.width - 80, 24)
+      .fill('#1f2937');
+
+    doc
+      .fillColor('#ffffff')
+      .text('Item', columnPositions.item, tableTop)
+      .text('Qty', columnPositions.qty, tableTop)
+      .text('Price', columnPositions.price, tableTop)
+      .text('Total', columnPositions.total, tableTop);
+
+    doc.fillColor('#111827');
+    let rowTop = tableTop + 30;
+    order.orderItems.forEach((item, index) => {
+      const isEven = index % 2 === 0;
+      if (isEven) {
+        doc
+          .save()
+          .rect(40, rowTop - 8, doc.page.width - 80, 24)
+          .fill('#f9fafb')
+          .restore();
+      }
+
+      doc.fillColor('#111827').text(item.title, columnPositions.item, rowTop, { width: 280 });
+      doc.text(String(item.quantity), columnPositions.qty, rowTop, { width: 40, align: 'right' });
+      doc.text(formatCurrency(item.price), columnPositions.price, rowTop, { width: 60, align: 'right' });
+      doc.text(formatCurrency(item.price * item.quantity), columnPositions.total, rowTop, {
+        width: 80,
+        align: 'right',
+      });
+      rowTop += 24;
+    });
+
+    doc.moveDown(1.5);
+
+    // Totals card
+    const totalsBoxWidth = 240;
+    const totalsBoxX = doc.page.width - totalsBoxWidth - 40;
+    const totalsBoxY = doc.y;
+    const totals = [
+      ['Items Total', formatCurrency(order.itemsPrice)],
+      ['Tax', formatCurrency(order.taxPrice)],
+      ['Shipping', formatCurrency(order.shippingPrice)],
+      ['Discount', `- ${formatCurrency(order.discount)}`],
+    ];
+    const totalsLineHeight = 18;
+    const totalsBoxHeight = totals.length * totalsLineHeight + 70;
+
+    doc
+      .save()
+      .roundedRect(totalsBoxX, totalsBoxY, totalsBoxWidth, totalsBoxHeight, 10)
+      .fill('#f3f4f6')
+      .restore();
+
+    doc
+      .fontSize(12)
+      .fillColor('#1f2937')
+      .text('Summary', totalsBoxX + 16, totalsBoxY + 14);
+
+    doc.fontSize(11).fillColor('#4b5563');
+    totals.forEach(([label, value], idx) => {
+      const lineY = totalsBoxY + 36 + idx * totalsLineHeight;
+      doc.text(label, totalsBoxX + 16, lineY);
+      doc.text(value, totalsBoxX + 16, lineY, {
+        width: totalsBoxWidth - 32,
+        align: 'right',
+      });
+    });
+
+    doc
+      .fontSize(13)
+      .fillColor('#111827')
+      .text('Grand Total', totalsBoxX + 16, totalsBoxY + totalsBoxHeight - 32);
+    doc
+      .fontSize(14)
+      .text(formatCurrency(order.totalPrice), totalsBoxX + 16, totalsBoxY + totalsBoxHeight - 34, {
+        width: totalsBoxWidth - 32,
+        align: 'right',
+      });
+
+    doc.y = totalsBoxY + totalsBoxHeight + 30;
+    doc
+      .fontSize(10)
+      .fillColor('#6b7280')
+      .text('Thank you for shopping with NovaMart. For support contact support@novamart.com', 40, doc.y, {
+        width: doc.page.width - 80,
+        align: 'center',
+      });
+
+    doc.end();
+  } catch (error) {
+    next(error);
+  }
+};
+
 export {
   getMyOrders,
   getOrderById,
@@ -317,4 +523,5 @@ export {
   updateOrderStatus,
   addTrackingInfo,
   processRefund,
+  getOrderInvoice,
 };

@@ -14,7 +14,7 @@ const PrivateRoute = ({ children }) => {
     }
   }, [user, status, dispatch]);
 
-  if (status === 'loading' || (status === 'idle' && !user)) {
+  if (status === 'loading') {
     return (
       <div style={{ 
         display: 'flex', 

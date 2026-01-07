@@ -10,12 +10,15 @@ import {
   updateOrderStatus,
   addTrackingInfo,
   processRefund,
+  getOrderInvoice,
 } from '../controllers/orderController.js';
+import { ensureGuestIdentity } from '../middleware/guestIdentity.js';
 
 const router = express.Router();
 
 router.get('/', protect, getMyOrders);
 router.get('/:id', protect, getOrderById);
+router.get('/:id/invoice', ensureGuestIdentity, getOrderInvoice);
 router.put('/:id/cancel', protect, cancelOrder);
 router.post('/:id/return', protect, requestReturn);
 

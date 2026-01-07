@@ -1,11 +1,29 @@
+import Stripe from 'stripe';
 import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
 import Order from '../models/Order.js';
 import Coupon from '../models/Coupon.js';
 
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+let stripeClient = null;
+if (stripeSecretKey) {
+  stripeClient = new Stripe(stripeSecretKey);
+}
+
+const getItemProductId = (item) => {
+  if (!item?.product) return null;
+  if (typeof item.product === 'string') return item.product;
+  if (item.product._id) return item.product._id.toString();
+  if (item.product.toString) return item.product.toString();
+  return null;
+};
+
 const validateCart = async (req, res, next) => {
   try {
-    const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
+    const userId = req.user?._id;
+    const guestId = req.guestId;
+    const query = userId ? { user: userId } : { guestId };
+    const cart = await Cart.findOne(query).populate('items.product');
     
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ message: 'Cart is empty' });
@@ -62,7 +80,10 @@ const validateCart = async (req, res, next) => {
 const applyCoupon = async (req, res, next) => {
   try {
     const { code } = req.body;
-    const cart = await Cart.findOne({ user: req.user._id });
+    const userId = req.user?._id;
+    const guestId = req.guestId;
+    const query = userId ? { user: userId } : { guestId };
+    const cart = await Cart.findOne(query);
 
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ message: 'Cart is empty' });
@@ -119,7 +140,10 @@ const applyCoupon = async (req, res, next) => {
 const calculateCheckout = async (req, res, next) => {
   try {
     const { shippingMethod = 'standard' } = req.body;
-    const cart = await Cart.findOne({ user: req.user._id }).populate('coupon');
+    const userId = req.user?._id;
+    const guestId = req.guestId;
+    const query = userId ? { user: userId } : { guestId };
+    const cart = await Cart.findOne(query).populate('coupon');
 
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ message: 'Cart is empty' });
@@ -168,26 +192,48 @@ const calculateCheckout = async (req, res, next) => {
 
 const createOrder = async (req, res, next) => {
   try {
-    const { shippingAddress, shippingMethod, paymentMethod } = req.body;
+    const {
+      shippingAddress = {},
+      shippingMethod,
+      paymentMethod,
+      guestEmail,
+      guestPhone,
+      stripePaymentIntentId,
+    } = req.body;
 
-    const cart = await Cart.findOne({ user: req.user._id }).populate('items.product coupon');
+    console.log(`[Order] Creating order - Payment method: ${paymentMethod}, Intent ID: ${stripePaymentIntentId}`);
+
+    const userId = req.user?._id;
+    const guestId = req.guestId;
+    const query = userId ? { user: userId } : { guestId };
+    const cart = await Cart.findOne(query).populate('items.product coupon');
 
     if (!cart || cart.items.length === 0) {
+      console.error('[Order] Cart is empty');
       return res.status(400).json({ message: 'Cart is empty' });
     }
 
+    console.log(`[Order] Cart found with ${cart.items.length} items, subtotal: ${cart.subtotal}`);
+
+    const productCache = new Map();
+
     for (const item of cart.items) {
-      const product = await Product.findById(item.product._id);
-      if (product.stock < item.quantity) {
+      const productId = getItemProductId(item);
+      const product = productId ? await Product.findById(productId) : null;
+      if (product) {
+        productCache.set(productId, product);
+      }
+
+      if (!product || product.stock < item.quantity) {
         return res.status(400).json({
-          message: `Insufficient stock for ${product.name}`,
+          message: `Insufficient stock for ${product?.name || 'product'}`,
         });
       }
     }
 
     const subtotal = cart.subtotal;
     const tax = subtotal * 0.18;
-    const shippingCost = shippingMethod === 'express' ? 500 : (subtotal >= 5000 ? 0 : 200);
+    const shippingCost = shippingMethod === 'express' ? 500 : subtotal >= 5000 ? 0 : 200;
 
     let discount = 0;
     if (cart.coupon) {
@@ -202,50 +248,171 @@ const createOrder = async (req, res, next) => {
     }
 
     const total = subtotal + tax + shippingCost - discount;
+    const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
-    const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    const orderItems = cart.items.map((item) => {
+      const productId = getItemProductId(item);
+      const productDoc = productCache.get(productId);
 
-    const order = await Order.create({
-      user: req.user._id,
-      orderNumber,
-      items: cart.items.map(item => ({
-        product: item.product._id,
-        quantity: item.quantity,
+      return {
+        product: productId,
+        seller: productDoc?.seller || undefined,
+        title: productDoc?.title || item.title,
         price: item.price,
-      })),
-      shippingAddress,
+        quantity: item.quantity,
+        image: productDoc?.images?.[0]?.url || item.image,
+        sku: productDoc?.sku || item.sku,
+      };
+    });
+
+    const mappedAddress = {
+      fullName: shippingAddress.fullName || shippingAddress.name || req.user?.fullName || 'Customer',
+      phone: shippingAddress.phone || guestPhone || '',
+      street: shippingAddress.addressLine1 || shippingAddress.street || '',
+      city: shippingAddress.city || '',
+      state: shippingAddress.state || '',
+      country: shippingAddress.country || 'Pakistan',
+      postalCode: shippingAddress.postalCode || '',
+      notes: shippingAddress.notes || '',
+    };
+
+    let paymentIntent = null;
+    let paymentCardBrand = null;
+    let paymentCardLast4 = null;
+
+    if (paymentMethod === 'stripe') {
+      if (!stripeClient) {
+        return res.status(500).json({ message: 'Stripe is not configured on the server.' });
+      }
+      if (!stripePaymentIntentId) {
+        return res.status(400).json({ message: 'Stripe payment intent is required.' });
+      }
+
+      const existingOrder = await Order.findOne({ paymentIntentId: stripePaymentIntentId });
+      if (existingOrder) {
+        console.warn(`[security] Duplicate order attempt with payment intent: ${stripePaymentIntentId}`);
+        return res.status(400).json({ message: 'This payment has already been used for an order.' });
+      }
+
+      paymentIntent = await stripeClient.paymentIntents.retrieve(stripePaymentIntentId, {
+        expand: ['latest_charge', 'charges.data.payment_method_details'],
+      });
+      if (!paymentIntent) {
+        return res.status(400).json({ message: 'Invalid Stripe payment intent.' });
+      }
+      if (paymentIntent.status !== 'succeeded') {
+        console.warn(`[security] Payment intent not succeeded: ${stripePaymentIntentId}, status: ${paymentIntent.status}`);
+        return res
+          .status(400)
+          .json({ message: 'Stripe payment is not completed. Please try again.' });
+      }
+      const expectedAmount = Math.round(total * 100);
+      if (paymentIntent.amount_received !== expectedAmount) {
+        console.error(
+          `[security] Amount mismatch - Expected: ${expectedAmount}, Received: ${paymentIntent.amount_received}, Intent: ${stripePaymentIntentId}`
+        );
+        return res
+          .status(400)
+          .json({ message: 'Payment amount mismatch. Please contact support.' });
+      }
+      if (paymentIntent.metadata) {
+        if (userId && paymentIntent.metadata.userId && paymentIntent.metadata.userId !== userId.toString()) {
+          console.warn(`[security] User ID mismatch for payment intent: ${stripePaymentIntentId}`);
+          return res.status(400).json({ message: 'Payment does not belong to this user.' });
+        }
+        if (
+          !userId &&
+          paymentIntent.metadata.guestId &&
+          paymentIntent.metadata.guestId !== guestId
+        ) {
+          console.warn(`[security] Guest ID mismatch for payment intent: ${stripePaymentIntentId}`);
+          return res.status(400).json({ message: 'Payment does not belong to this guest session.' });
+        }
+      }
+      let charge = null;
+      if (paymentIntent.latest_charge) {
+        if (typeof paymentIntent.latest_charge === 'string') {
+          charge = await stripeClient.charges.retrieve(paymentIntent.latest_charge);
+        } else {
+          charge = paymentIntent.latest_charge;
+        }
+      } else if (paymentIntent.charges?.data?.length) {
+        charge = paymentIntent.charges.data[0];
+      }
+
+      if (charge?.payment_method_details?.card) {
+        paymentCardBrand = charge.payment_method_details.card.brand;
+        paymentCardLast4 = charge.payment_method_details.card.last4;
+      }
+
+      console.log(`[security] Payment verification passed for intent: ${stripePaymentIntentId}`);
+    }
+
+    const orderData = {
+      orderNumber,
+      orderItems,
+      shippingAddress: mappedAddress,
+      billingAddress: mappedAddress,
       itemsPrice: subtotal,
       taxPrice: tax,
       shippingPrice: shippingCost,
       discount,
-      totalAmount: total,
+      totalPrice: total,
       paymentMethod,
-      status: paymentMethod === 'cod' ? 'pending' : 'awaiting_payment',
-    });
+      paymentCardBrand,
+      paymentCardLast4,
+      currency: 'USD',
+      status: paymentMethod === 'cod' ? 'processing' : 'processing',
+    };
+
+    if (paymentMethod === 'stripe') {
+      orderData.paymentIntentId = paymentIntent.id;
+      orderData.isPaid = true;
+      orderData.paidAt = new Date();
+    } else {
+      orderData.status = 'processing';
+    }
+
+    // Add user or guest identification
+    if (userId) {
+      orderData.user = userId;
+    } else {
+      orderData.guestId = guestId;
+      orderData.guestEmail = guestEmail;
+      orderData.guestPhone = guestPhone;
+    }
+
+    const order = await Order.create(orderData);
+    console.log(`[Order] Order created successfully: ${order._id}, Order Number: ${order.orderNumber}`);
 
     for (const item of cart.items) {
-      await Product.findByIdAndUpdate(item.product._id, {
+      const productId = getItemProductId(item);
+      if (!productId) continue;
+      await Product.findByIdAndUpdate(productId, {
         $inc: { stock: -item.quantity, soldCount: item.quantity },
       });
     }
+    console.log(`[Order] Product stock updated for ${cart.items.length} items`);
 
     if (cart.coupon) {
       await Coupon.findByIdAndUpdate(cart.coupon._id, {
         $inc: { usedCount: 1 },
       });
+      console.log(`[Order] Coupon usage updated: ${cart.coupon._id}`);
     }
 
     cart.items = [];
     cart.coupon = null;
     cart.subtotal = 0;
     await cart.save();
+    console.log(`[Order] Cart cleared`);
 
     res.status(201).json({
       message: 'Order created successfully',
       order: {
         _id: order._id,
         orderNumber: order.orderNumber,
-        totalAmount: order.totalAmount,
+        totalAmount: order.totalPrice,
         status: order.status,
       },
     });

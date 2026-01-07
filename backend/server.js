@@ -22,11 +22,13 @@ import productRoutes from './routes/productRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import checkoutRoutes from './routes/checkoutRoutes.js';
+import { handleStripeWebhook } from './controllers/paymentController.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import sellerRoutes from './routes/sellerRoutes.js';
 import { initializeSocket } from './config/socket.js';
+import { dropLegacyCartIndexes } from './models/Cart.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -39,6 +41,7 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
 
 await connectDB();
+await dropLegacyCartIndexes();
 await connectRedis();
 configureCloudinary();
 configurePassport();
@@ -55,9 +58,14 @@ const corsOptions = {
   credentials: true,
 };
 
+app.post('/api/checkout/payment/stripe/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
+
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many requests, please slow down.',
 });
 
 app.set('trust proxy', 1);
@@ -65,14 +73,23 @@ app.use(helmet());
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+const COOKIE_SECRET = process.env.COOKIE_SECRET || process.env.SESSION_SECRET;
+if (!COOKIE_SECRET) {
+  throw new Error('COOKIE_SECRET or SESSION_SECRET must be defined to sign cookies');
+}
+
+app.use(cookieParser(COOKIE_SECRET));
 app.use(configureSession());
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(mongoSanitize());
 app.use(xss());
 app.use(hpp());
-app.use(limiter);
+if (NODE_ENV === 'production') {
+  app.use(limiter);
+} else {
+  console.warn('[rate-limit] Disabled global limiter in non-production environment');
+}
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', env: NODE_ENV, dbState: mongoose.connection.readyState });

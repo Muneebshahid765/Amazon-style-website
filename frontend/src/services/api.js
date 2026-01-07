@@ -28,7 +28,14 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      if (originalRequest.url?.includes('/auth/login') || originalRequest.url?.includes('/auth/register')) {
+      // Skip auth refresh for login/register/guest routes
+      if (
+        originalRequest.url?.includes('/auth/login') || 
+        originalRequest.url?.includes('/auth/register') ||
+        originalRequest.url?.includes('/auth/me') ||
+        originalRequest.url?.includes('/users/cart') ||
+        originalRequest.url?.includes('/checkout')
+      ) {
         return Promise.reject(error);
       }
 
@@ -49,7 +56,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-        window.location.href = '/login';
+        // Don't redirect to login for guest users
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

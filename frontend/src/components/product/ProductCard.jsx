@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FiHeart, FiShoppingCart, FiEye } from 'react-icons/fi';
 import { useDispatch } from 'react-redux';
 import { addToCart } from '../../redux/slices/cartSlice';
@@ -7,6 +7,7 @@ import styles from '../../styles/ProductCard.module.css';
 
 const ProductCard = ({ product, viewMode = 'grid' }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const handleAddToCart = (e) => {
     e.preventDefault();
@@ -39,9 +40,17 @@ const ProductCard = ({ product, viewMode = 'grid' }) => {
           <button onClick={handleAddToWishlist} className={styles.iconBtn} title="Add to Wishlist">
             <FiHeart />
           </button>
-          <Link to={`/products/${product.slug || product._id}`} className={styles.iconBtn} title="Quick View">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate(`/products/${product.slug || product._id}`);
+            }}
+            className={styles.iconBtn}
+            title="Quick View"
+          >
             <FiEye />
-          </Link>
+          </button>
         </div>
       </Link>
 

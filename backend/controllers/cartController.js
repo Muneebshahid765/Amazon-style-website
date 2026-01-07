@@ -9,13 +9,17 @@ const getItemProductId = (item) => {
   return null;
 };
 
-const findOrCreateCart = async (userId) => {
-  let cart = await Cart.findOne({ user: userId }).populate(
+const findOrCreateCart = async (userId, guestId) => {
+  const query = userId ? { user: userId } : { guestId };
+  
+  let cart = await Cart.findOne(query).populate(
     'items.product',
     'title price discountPrice images slug stock'
   );
+  
   if (!cart) {
-    cart = await Cart.create({ user: userId, items: [] });
+    const cartData = userId ? { user: userId, items: [] } : { guestId, items: [] };
+    cart = await Cart.create(cartData);
   }
   return cart;
 };
@@ -29,7 +33,10 @@ const recalcCart = (cart) => {
 
 const getCart = async (req, res, next) => {
   try {
-    const cart = await findOrCreateCart(req.user._id);
+    const userId = req.user?._id;
+    const guestId = req.guestId;
+    
+    const cart = await findOrCreateCart(userId, guestId);
     recalcCart(cart);
     await cart.save();
     
@@ -65,7 +72,9 @@ const addToCart = async (req, res, next) => {
       return res.status(400).json({ message: 'Insufficient stock' });
     }
 
-    const cart = await findOrCreateCart(req.user._id);
+    const userId = req.user?._id;
+    const guestId = req.guestId;
+    const cart = await findOrCreateCart(userId, guestId);
     const existingItem = cart.items.find((item) => getItemProductId(item) === productId);
 
     if (existingItem) {
@@ -125,7 +134,9 @@ const updateCartItem = async (req, res, next) => {
       return res.status(400).json({ message: 'Insufficient stock' });
     }
 
-    const cart = await findOrCreateCart(req.user._id);
+    const userId = req.user?._id;
+    const guestId = req.guestId;
+    const cart = await findOrCreateCart(userId, guestId);
     const item = cart.items.find((item) => getItemProductId(item) === productId);
 
     if (!item) {
@@ -160,7 +171,9 @@ const updateCartItem = async (req, res, next) => {
 
 const removeFromCart = async (req, res, next) => {
   try {
-    const cart = await findOrCreateCart(req.user._id);
+    const userId = req.user?._id;
+    const guestId = req.guestId;
+    const cart = await findOrCreateCart(userId, guestId);
     cart.items = cart.items.filter((item) => getItemProductId(item) !== req.params.productId);
     recalcCart(cart);
     await cart.save();
@@ -187,7 +200,9 @@ const removeFromCart = async (req, res, next) => {
 
 const clearCart = async (req, res, next) => {
   try {
-    const cart = await findOrCreateCart(req.user._id);
+    const userId = req.user?._id;
+    const guestId = req.guestId;
+    const cart = await findOrCreateCart(userId, guestId);
     cart.items = [];
     recalcCart(cart);
     await cart.save();

@@ -20,7 +20,8 @@ const cartItemSchema = new Schema(
 
 const cartSchema = new Schema(
   {
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    user: { type: Schema.Types.ObjectId, ref: 'User', sparse: true },
+    guestId: { type: String, sparse: true },
     items: {
       type: [cartItemSchema],
       default: [],
@@ -37,7 +38,19 @@ const cartSchema = new Schema(
   { timestamps: true }
 );
 
-cartSchema.index({ user: 1 });
+cartSchema.index({ user: 1 }, { sparse: true });
+cartSchema.index({ guestId: 1 }, { sparse: true });
+
+// Validation: cart must have either user OR guestId
+cartSchema.pre('validate', function (next) {
+  if (!this.user && !this.guestId) {
+    return next(new Error('Cart must have either user or guestId'));
+  }
+  if (this.user && this.guestId) {
+    return next(new Error('Cart cannot have both user and guestId'));
+  }
+  next();
+});
 
 cartSchema.methods.recalculateTotals = function recalculateTotals() {
   this.subtotal = this.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -51,5 +64,16 @@ cartSchema.pre('save', function handleTotals(next) {
 });
 
 const Cart = mongoose.model('Cart', cartSchema);
+
+export const dropLegacyCartIndexes = async () => {
+  try {
+    await Cart.collection.dropIndex('user_1');
+    console.info('[cart-index] Dropped legacy user_1 unique index');
+  } catch (error) {
+    if (error.codeName !== 'IndexNotFound' && error.code !== 27) {
+      console.warn('[cart-index] Unable to drop legacy user_1 index', error.message);
+    }
+  }
+};
 
 export default Cart;

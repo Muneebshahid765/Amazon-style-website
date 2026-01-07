@@ -1,6 +1,7 @@
 import express from 'express';
 import { body } from 'express-validator';
 import { protect } from '../middleware/auth.js';
+import { ensureGuestIdentity } from '../middleware/guestIdentity.js';
 import { validate } from '../middleware/validation.js';
 import {
   validateCart,
@@ -8,45 +9,46 @@ import {
   calculateCheckout,
   createOrder,
 } from '../controllers/checkoutController.js';
-import {
-  createPaymentIntent,
-  handleStripeWebhook,
-  processCOD,
-} from '../controllers/paymentController.js';
+import { createPaymentIntent, processCOD } from '../controllers/paymentController.js';
 import { validateCoupon, getAvailableCoupons } from '../controllers/couponController.js';
 
 const router = express.Router();
 
-router.post('/validate', protect, validateCart);
+// Allow both authenticated users and guests for checkout flow
+router.post('/validate', ensureGuestIdentity, validateCart);
 
 router.post(
   '/apply-coupon',
-  protect,
+  ensureGuestIdentity,
   validate([body('code').notEmpty().trim().withMessage('Coupon code is required')]),
   applyCoupon
 );
 
-router.post('/calculate', protect, calculateCheckout);
+router.post('/calculate', ensureGuestIdentity, calculateCheckout);
 
 router.post(
   '/orders',
-  protect,
+  ensureGuestIdentity,
   validate([
     body('shippingAddress').notEmpty().withMessage('Shipping address is required'),
     body('shippingMethod').isIn(['standard', 'express']).withMessage('Invalid shipping method'),
     body('paymentMethod').isIn(['stripe', 'cod']).withMessage('Invalid payment method'),
+    body('guestEmail').optional().isEmail().withMessage('Valid email required for guest checkout'),
+    body('guestPhone').optional().trim(),
+    body('stripePaymentIntentId')
+      .if(body('paymentMethod').equals('stripe'))
+      .notEmpty()
+      .withMessage('Stripe payment intent is required for card payments'),
   ]),
   createOrder
 );
 
-router.post('/payment/stripe/create-intent', protect, createPaymentIntent);
+router.post('/payment/stripe/create-intent', ensureGuestIdentity, createPaymentIntent);
 
-router.post('/payment/stripe/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
+router.post('/payment/cod', ensureGuestIdentity, processCOD);
 
-router.post('/payment/cod', protect, processCOD);
+router.get('/coupons/validate/:code', ensureGuestIdentity, validateCoupon);
 
-router.get('/coupons/validate/:code', protect, validateCoupon);
-
-router.get('/coupons/available', protect, getAvailableCoupons);
+router.get('/coupons/available', ensureGuestIdentity, getAvailableCoupons);
 
 export default router;

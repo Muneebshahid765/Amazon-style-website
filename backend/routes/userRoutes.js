@@ -20,6 +20,7 @@ import {
 } from '../controllers/userController.js';
 import { getCart, addToCart, updateCartItem, removeFromCart, clearCart } from '../controllers/cartController.js';
 import { protect, restrictTo } from '../middleware/auth.js';
+import { ensureGuestIdentity } from '../middleware/guestIdentity.js';
 import { validate } from '../middleware/validation.js';
 import upload from '../config/multer.js';
 
@@ -86,10 +87,12 @@ router.get('/orders', protect, getUserOrders);
 router.get('/orders/:id', protect, getUserOrderById);
 
 router.get('/', protect, restrictTo('admin'), listUsers);
-router.get('/cart', protect, getCart);
-router.post('/cart', protect, addToCart);
-router.put('/cart', protect, updateCartItem);
-router.delete('/cart/:productId', protect, removeFromCart);
-router.delete('/cart', protect, clearCart);
+
+// Cart routes - allow both authenticated users and guests
+router.get('/cart', ensureGuestIdentity, getCart);
+router.post('/cart', ensureGuestIdentity, addToCart);
+router.put('/cart', ensureGuestIdentity, updateCartItem);
+router.delete('/cart/:productId', ensureGuestIdentity, removeFromCart);
+router.delete('/cart', ensureGuestIdentity, clearCart);
 
 export default router;

@@ -27,6 +27,10 @@ export const validateCheckout = createAsyncThunk(
       const { data } = await api.post('/checkout/validate');
       return data;
     } catch (error) {
+      // Don't show error for guest users - validation will happen on order creation
+      if (error.response?.status === 401) {
+        return { valid: true, cart: { items: [], subtotal: 0 } };
+      }
       const message = error.response?.data?.message || 'Validation failed';
       toast.error(message);
       return rejectWithValue(message);
@@ -56,6 +60,16 @@ export const calculateCheckout = createAsyncThunk(
       const { data } = await api.post('/checkout/calculate', { shippingMethod });
       return data;
     } catch (error) {
+      // For guest users, return default calculation
+      if (error.response?.status === 401) {
+        return {
+          subtotal: 0,
+          tax: 0,
+          shippingCost: shippingMethod === 'express' ? 500 : 200,
+          discount: 0,
+          total: 0,
+        };
+      }
       return rejectWithValue(error.response?.data?.message || 'Calculation failed');
     }
   }

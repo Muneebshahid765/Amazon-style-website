@@ -8,7 +8,13 @@ const Earnings = () => {
   const dispatch = useDispatch();
   const { earnings, loading } = useSelector((state) => state.seller);
   const [showPayoutModal, setShowPayoutModal] = useState(false);
-  const [payoutData, setPayoutData] = useState({ amount: '', method: 'bank_transfer', accountDetails: { accountHolderName: '', accountNumber: '', bankName: '' } });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [payoutData, setPayoutData] = useState({
+    amount: '',
+    method: 'bank_transfer',
+    accountDetails: { accountHolderName: '', accountNumber: '', bankName: '' },
+  });
 
   useEffect(() => {
     dispatch(fetchEarnings());
@@ -16,9 +22,40 @@ const Earnings = () => {
 
   const handlePayoutRequest = async (e) => {
     e.preventDefault();
-    await dispatch(requestPayout(payoutData));
-    setShowPayoutModal(false);
-    dispatch(fetchEarnings());
+    const availableBalance = earnings?.available || 0;
+    const amountValue = Number(payoutData.amount);
+
+    if (!amountValue || amountValue <= 0) {
+      setFormError('Please enter an amount greater than zero.');
+      return;
+    }
+
+    if (amountValue > availableBalance) {
+      setFormError('Requested amount exceeds available balance.');
+      return;
+    }
+
+    if (!payoutData.accountDetails.accountHolderName || !payoutData.accountDetails.accountNumber) {
+      setFormError('Account holder name and account number are required.');
+      return;
+    }
+
+    setFormError('');
+    setIsSubmitting(true);
+    const result = await dispatch(requestPayout({ ...payoutData, amount: amountValue }));
+    setIsSubmitting(false);
+
+    if (requestPayout.fulfilled.match(result)) {
+      setShowPayoutModal(false);
+      setPayoutData({
+        amount: '',
+        method: 'bank_transfer',
+        accountDetails: { accountHolderName: '', accountNumber: '', bankName: '' },
+      });
+      dispatch(fetchEarnings());
+    } else {
+      setFormError(result.payload || 'Failed to request payout.');
+    }
   };
 
   return (
@@ -95,8 +132,15 @@ const Earnings = () => {
               </div>
               <div className={styles.modalActions}>
                 <button type="button" onClick={() => setShowPayoutModal(false)} className={styles.cancelBtn}>Cancel</button>
-                <button type="submit" className={styles.submitBtn}>Submit Request</button>
+                <button
+                  type="submit"
+                  className={styles.submitBtn}
+                  disabled={isSubmitting || (earnings?.available || 0) <= 0}
+                >
+                  {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                </button>
               </div>
+              {formError && <p className={styles.errorText}>{formError}</p>}
             </form>
           </div>
         </div>

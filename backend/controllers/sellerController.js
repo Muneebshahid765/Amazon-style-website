@@ -10,6 +10,44 @@ import Review from '../models/Review.js';
 import Category from '../models/Category.js';
 import { sendEmail } from '../utils/sendEmail.js';
 
+const resolveCategoryValue = async (rawValue) => {
+  if (!rawValue) return null;
+  const normalizedSlug = slugify(String(rawValue), { lower: true, strict: true });
+
+  let categoryDoc = await Category.findOne({
+    $or: [{ slug: normalizedSlug }, { name: new RegExp(`^${rawValue}$`, 'i') }],
+  });
+
+  if (!categoryDoc) {
+    let slugCandidate = normalizedSlug || `category-${Date.now()}`;
+    let counter = 1;
+    while (await Category.exists({ slug: slugCandidate })) {
+      slugCandidate = `${normalizedSlug}-${counter++}`;
+    }
+
+    categoryDoc = await Category.create({
+      name: rawValue,
+      slug: slugCandidate,
+    });
+  }
+
+  return categoryDoc._id;
+};
+
+const mapCategoryField = async (data, fieldName) => {
+  if (!data[fieldName]) return;
+  const currentValue = data[fieldName];
+  const isValidId = mongoose.Types.ObjectId.isValid(currentValue);
+  if (isValidId) return;
+
+  const resolvedId = await resolveCategoryValue(currentValue);
+  if (resolvedId) {
+    data[fieldName] = resolvedId;
+  } else {
+    delete data[fieldName];
+  }
+};
+
 const uploadProductImages = async (files = []) => {
   if (!files.length || !cloudinary?.uploader) return [];
 
@@ -200,39 +238,8 @@ export const createProduct = async (req, res, next) => {
       productData.slug = uniqueSlug;
     }
 
-    const resolveCategoryValue = async (rawValue) => {
-      const normalizedSlug = slugify(rawValue, { lower: true, strict: true });
-
-      let categoryDoc = await Category.findOne({
-        $or: [
-          { slug: normalizedSlug },
-          { name: new RegExp(`^${rawValue}$`, 'i') },
-        ],
-      });
-
-      if (!categoryDoc) {
-        let slugCandidate = normalizedSlug;
-        let counter = 1;
-        while (await Category.exists({ slug: slugCandidate })) {
-          slugCandidate = `${normalizedSlug}-${counter++}`;
-        }
-        categoryDoc = await Category.create({ name: rawValue, slug: slugCandidate });
-      }
-
-      return categoryDoc._id;
-    };
-
-    const mapCategoryField = async (fieldName) => {
-      if (!productData[fieldName]) return;
-      const rawValue = productData[fieldName];
-      const isValidId = mongoose.Types.ObjectId.isValid(rawValue);
-      if (isValidId) return;
-
-      productData[fieldName] = await resolveCategoryValue(rawValue);
-    };
-
-    await mapCategoryField('category');
-    await mapCategoryField('subcategory');
+    await mapCategoryField(productData, 'category');
+    await mapCategoryField(productData, 'subcategory');
 
     if (productData.comparePrice !== undefined) {
       productData.discountPrice =
@@ -317,17 +324,8 @@ export const updateProduct = async (req, res, next) => {
       updatedData.images = existingImages;
     }
 
-    const mapCategoryField = async (fieldName) => {
-      if (!updatedData[fieldName]) return;
-      const rawValue = updatedData[fieldName];
-      const isValidId = mongoose.Types.ObjectId.isValid(rawValue);
-      if (isValidId) return;
-
-      updatedData[fieldName] = await resolveCategoryValue(rawValue);
-    };
-
-    await mapCategoryField('category');
-    await mapCategoryField('subcategory');
+    await mapCategoryField(updatedData, 'category');
+    await mapCategoryField(updatedData, 'subcategory');
 
     Object.assign(product, updatedData);
     await product.save();

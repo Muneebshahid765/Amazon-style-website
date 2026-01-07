@@ -164,6 +164,52 @@
   cursor: pointer;
 }
 
+.cardPaymentSection {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f9fbff;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.cardField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.cardField span {
+  font-size: 0.9rem;
+}
+
+.cardField :global(.StripeElement) {
+  padding: 0.75rem 1rem;
+  border: 1px solid #cbd5f5;
+  border-radius: 8px;
+  background: white;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+.cardField :global(.StripeElement--focus) {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+}
+
+.errorText {
+  margin-top: 0.75rem;
+  color: #e53e3e;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .addressDetails {
   flex: 1;
 }

@@ -118,17 +118,7 @@ const deleteAvatar = async (req, res, next) => {
 
 const addAddress = async (req, res, next) => {
   try {
-    const { label, fullName, phone, addressLine1, addressLine2, city, state, postalCode, country, isDefault } = req.body;
-
-    const user = await User.findById(req.user._id);
-
-    if (isDefault) {
-      user.addresses.forEach((addr) => {
-        addr.isDefault = false;
-      });
-    }
-
-    user.addresses.push({
+    const {
       label,
       fullName,
       phone,
@@ -138,11 +128,32 @@ const addAddress = async (req, res, next) => {
       state,
       postalCode,
       country,
-      isDefault: isDefault || user.addresses.length === 0,
-    });
+      isDefault,
+    } = req.body;
+
+    const user = await User.findById(req.user._id);
+
+    const normalizedAddress = {
+      label,
+      fullName,
+      phone,
+      addressLine1,
+      addressLine2,
+      city,
+      state,
+      postalCode,
+      country,
+      isDefault: true,
+    };
+
+    if (user.addresses.length > 0) {
+      user.addresses = [normalizedAddress];
+    } else {
+      user.addresses.push(normalizedAddress);
+    }
 
     await user.save();
-    res.status(201).json({ message: 'Address added successfully', addresses: user.addresses });
+    res.status(201).json({ message: 'Address saved', addresses: user.addresses });
   } catch (error) {
     next(error);
   }

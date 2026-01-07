@@ -51,14 +51,32 @@ export const loginUser = createAsyncThunk('auth/login', async (credentials, { re
   }
 });
 
-export const fetchProfile = createAsyncThunk('auth/profile', async (_, { rejectWithValue }) => {
-  try {
-    const { data } = await api.get('/auth/me');
-    return data.user;
-  } catch (error) {
-    return rejectWithValue(error.response?.data?.message || 'Unable to fetch profile');
+export const fetchProfile = createAsyncThunk(
+  'auth/profile',
+  async (_, { rejectWithValue, getState }) => {
+    // Skip if already checked and failed (guest user)
+    const { auth } = getState();
+    if (auth.status === 'failed' || auth.status === 'guest') {
+      return rejectWithValue('Guest user');
+    }
+    try {
+      const { data } = await api.get('/auth/me');
+      return data.user;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Unable to fetch profile');
+    }
+  },
+  {
+    condition: (_, { getState }) => {
+      const { auth } = getState();
+      // Don't fetch if already loading or if we've already determined user is guest
+      if (auth.status === 'loading') {
+        return false;
+      }
+      return true;
+    },
   }
-});
+);
 
 export const logoutUser = createAsyncThunk('auth/logout', async (_, { rejectWithValue }) => {
   try {
@@ -162,7 +180,7 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
       })
       .addCase(fetchProfile.rejected, (state, action) => {
-        state.status = 'idle';
+        state.status = 'guest';
         state.user = null;
         state.isAuthenticated = false;
         state.error = null;

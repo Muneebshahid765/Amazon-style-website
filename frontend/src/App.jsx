@@ -69,8 +69,8 @@ function App() {
         <Route path="/products" element={<Layout><ProductList /></Layout>} />
         <Route path="/products/:slug" element={<Layout><ProductDetail /></Layout>} />
         <Route path="/cart" element={<Layout><Cart /></Layout>} />
-        <Route path="/checkout" element={<Layout><PrivateRoute><Checkout /></PrivateRoute></Layout>} />
-        <Route path="/order-success/:orderId" element={<Layout><PrivateRoute><OrderSuccess /></PrivateRoute></Layout>} />
+        <Route path="/checkout" element={<Layout><Checkout /></Layout>} />
+        <Route path="/order-success/:orderId" element={<Layout><OrderSuccess /></Layout>} />
         <Route path="/profile" element={<Layout><PrivateRoute><Profile /></PrivateRoute></Layout>} />
         <Route path="/dashboard" element={<Layout><PrivateRoute><UserDashboard /></PrivateRoute></Layout>} />
         <Route path="/wishlist" element={<Layout><PrivateRoute><Wishlist /></PrivateRoute></Layout>} />

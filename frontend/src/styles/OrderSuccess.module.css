@@ -229,6 +229,16 @@
   color: #4a5568;
 }
 
+.guestNotice {
+  background: #edf2ff;
+  border: 1px solid #c3dafe;
+  border-radius: 12px;
+  padding: 1.25rem;
+  color: #2b6cb0;
+  margin: 0 0 1.5rem;
+  font-size: 0.95rem;
+}
+
 @media (max-width: 640px) {
   .successCard {
     padding: 2rem 1rem;

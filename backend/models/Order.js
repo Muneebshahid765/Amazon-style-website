@@ -57,7 +57,10 @@ const statusHistorySchema = new Schema(
 const orderSchema = new Schema(
   {
     orderNumber: { type: String, unique: true, index: true },
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    user: { type: Schema.Types.ObjectId, ref: 'User', sparse: true },
+    guestId: { type: String, sparse: true },
+    guestEmail: { type: String },
+    guestPhone: { type: String },
     seller: { type: Schema.Types.ObjectId, ref: 'User' },
     orderItems: { type: [orderItemSchema], validate: [(val) => val.length > 0, 'Items required'] },
     shippingAddress: addressSchema,
@@ -69,9 +72,28 @@ const orderSchema = new Schema(
     shippingPrice: { type: Number, default: 0 },
     totalPrice: { type: Number, required: true },
     currency: { type: String, default: 'USD' },
+    paymentMethod: {
+      type: String,
+      enum: ['cod', 'stripe'],
+      default: 'cod',
+    },
+    paymentCardBrand: { type: String },
+    paymentCardLast4: { type: String },
+    paymentIntentId: { type: String },
+    isPaid: { type: Boolean, default: false },
+    paidAt: Date,
     status: {
       type: String,
-      enum: ['pending', 'processing', 'packed', 'shipped', 'delivered', 'cancelled', 'refunded'],
+      enum: [
+        'pending',
+        'awaiting_payment',
+        'processing',
+        'packed',
+        'shipped',
+        'delivered',
+        'cancelled',
+        'refunded',
+      ],
       default: 'pending',
     },
     statusHistory: [statusHistorySchema],
@@ -83,7 +105,8 @@ const orderSchema = new Schema(
   }
 );
 
-orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ user: 1, createdAt: -1 }, { sparse: true });
+orderSchema.index({ guestId: 1, createdAt: -1 }, { sparse: true });
 orderSchema.index({ status: 1 });
 orderSchema.index({ createdAt: -1 });
 
@@ -97,6 +120,17 @@ orderSchema.pre('save', function ensureHistory(next) {
 orderSchema.pre('save', function ensureOrderNumber(next) {
   if (this.orderNumber) return next();
   this.orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  next();
+});
+
+// Validation: order must have either user OR guestId
+orderSchema.pre('validate', function (next) {
+  if (!this.user && !this.guestId) {
+    return next(new Error('Order must have either user or guestId'));
+  }
+  if (this.user && this.guestId) {
+    return next(new Error('Order cannot have both user and guestId'));
+  }
   next();
 });
 
