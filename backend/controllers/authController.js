@@ -56,7 +56,19 @@ const register = async (req, res, next) => {
       return res.status(409).json({ message: 'User already exists' });
     }
 
-    const user = await User.create({ firstName, lastName, email, password, phone });
+    const displayName = `${firstName} ${lastName}`.trim() || firstName || 'Buyer';
+    const user = new User({
+      firstName,
+      lastName,
+      email,
+      password,
+      phone,
+      buyerProfile: {
+        displayName,
+        createdAt: new Date(),
+      },
+      hasBuyerProfile: true,
+    });
     const verificationToken = user.generateVerificationToken();
     await user.save();
 
@@ -743,12 +755,27 @@ const completeRegistration = async (req, res, next) => {
       accountType,
       role: accountType === 'seller' ? 'seller' : 'user',
       isEmailVerified: true,
+      isVerified: true,
       addresses: [address],
     };
 
     if (accountType === 'seller' && businessInfo) {
       userData.businessInfo = businessInfo;
       userData.accountStatus = 'pending_verification';
+    }
+
+    if (accountType === 'seller') {
+      userData.buyerProfile = {
+        displayName: `${personalInfo.firstName} ${personalInfo.lastName}`.trim(),
+        createdAt: new Date(),
+      };
+      userData.hasBuyerProfile = true;
+    } else {
+      userData.hasBuyerProfile = true;
+      userData.buyerProfile = {
+        displayName: `${personalInfo.firstName} ${personalInfo.lastName}`.trim(),
+        createdAt: new Date(),
+      };
     }
 
     const user = await User.create(userData);

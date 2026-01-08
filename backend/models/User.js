@@ -74,6 +74,11 @@ const userSchema = new Schema(
     accountType: { type: String, enum: ['customer', 'seller', 'admin'], default: 'customer' },
     role: { type: String, enum: ['user', 'admin', 'seller'], default: 'user' },
     businessInfo: businessInfoSchema,
+    buyerProfile: {
+      displayName: { type: String, trim: true },
+      createdAt: { type: Date },
+    },
+    hasBuyerProfile: { type: Boolean, default: false },
     addresses: [addressSchema],
     wishlist: [{ type: Schema.Types.ObjectId, ref: 'Product' }],
     verificationCode: { type: String, select: false },

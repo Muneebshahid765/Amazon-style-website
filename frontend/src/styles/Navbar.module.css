@@ -43,6 +43,24 @@
   gap: 1rem;
 }
 
+.switchBtn {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(15, 23, 42, 0.35);
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.switchBtn:hover {
+  color: #0f172a;
+  background: #f8fafc;
+}
+
 .cartPill {
   display: inline-flex;
   align-items: center;

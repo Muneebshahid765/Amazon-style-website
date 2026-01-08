@@ -30,7 +30,7 @@ const BusinessInformation = ({ onNext, onPrevious, initialData, addressData }) =
     (state) => state.registration
   );
   const [businessNameCheckTimeout, setBusinessNameCheckTimeout] = useState(null);
-  const [sameAsPersonal, setSameAsPersonal] = useState(true);
+  const [sameAsPersonal, setSameAsPersonal] = useState(!initialData?.businessStreet);
   const [charCount, setCharCount] = useState(initialData?.description?.length || 0);
 
   const logoUpload = useFileUpload({
@@ -81,23 +81,38 @@ const BusinessInformation = ({ onNext, onPrevious, initialData, addressData }) =
     },
   };
 
+  const defaultValues = {
+    businessName: '',
+    businessType: '',
+    registrationNumber: '',
+    taxId: '',
+    businessCategory: '',
+    description: '',
+    businessStreet: '',
+    businessCity: '',
+    businessState: '',
+    businessCountry: '',
+    businessZipCode: '',
+  };
+
+  const prefilledInitialAddress = initialData?.businessAddress
+    ? {
+        businessStreet: initialData.businessAddress.street || '',
+        businessCity: initialData.businessAddress.city || '',
+        businessState: initialData.businessAddress.state || '',
+        businessCountry: initialData.businessAddress.country || '',
+        businessZipCode: initialData.businessAddress.zipCode || '',
+      }
+    : {};
+
+  const formInitialValues = {
+    ...defaultValues,
+    ...(initialData || {}),
+    ...prefilledInitialAddress,
+  };
+
   const { values, errors, touched, handleChange, handleBlur, validateAll, setFieldValue } =
-    useFormValidation(
-      initialData || {
-        businessName: '',
-        businessType: '',
-        registrationNumber: '',
-        taxId: '',
-        businessCategory: '',
-        description: '',
-        businessStreet: '',
-        businessCity: '',
-        businessState: '',
-        businessCountry: '',
-        businessZipCode: '',
-      },
-      validationRules
-    );
+    useFormValidation(formInitialValues, validationRules);
 
   useEffect(() => {
     if (values.businessName && values.businessName.length >= 3) {
@@ -122,6 +137,15 @@ const BusinessInformation = ({ onNext, onPrevious, initialData, addressData }) =
   useEffect(() => {
     setCharCount((values.description || '').length);
   }, [values.description]);
+
+  useEffect(() => {
+    if (!sameAsPersonal || !addressData) return;
+    setFieldValue('businessStreet', addressData.street || '');
+    setFieldValue('businessCity', addressData.city || '');
+    setFieldValue('businessState', addressData.state || '');
+    setFieldValue('businessCountry', addressData.country || '');
+    setFieldValue('businessZipCode', addressData.zipCode || '');
+  }, [sameAsPersonal, addressData, setFieldValue]);
 
   const handleLogoUpload = async (e) => {
     logoUpload.handleFileSelect(e);

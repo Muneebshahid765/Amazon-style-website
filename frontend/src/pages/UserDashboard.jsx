@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { FiUser, FiMapPin, FiHeart, FiPackage, FiLock } from 'react-icons/fi';
 import ProfilePage from './ProfilePage';
 import AddressManager from '../components/user/AddressManager';
@@ -8,7 +10,22 @@ import Wishlist from './Wishlist';
 import styles from '../styles/UserDashboard.module.css';
 
 const UserDashboard = () => {
+  const navigate = useNavigate();
+  const { user, activeMode } = useSelector((state) => state.auth);
   const [activeTab, setActiveTab] = useState('profile');
+
+  useEffect(() => {
+    if (!user) return;
+
+    const isSeller = user.role === 'seller' || user.accountType === 'seller';
+    const isAdmin = user.role === 'admin' || user.accountType === 'admin';
+
+    if (isAdmin && activeMode === 'admin') {
+      navigate('/admin', { replace: true });
+    } else if (isSeller && activeMode === 'seller') {
+      navigate('/seller', { replace: true });
+    }
+  }, [user, activeMode, navigate]);
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: FiUser },

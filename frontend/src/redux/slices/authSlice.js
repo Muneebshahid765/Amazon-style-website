@@ -2,11 +2,45 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../services/api.js';
 import { toast } from 'react-toastify';
 
+const STORAGE_KEY = 'novamartActiveMode';
+
+const readStoredMode = () => {
+  if (typeof window === 'undefined') return 'buyer';
+  return localStorage.getItem(STORAGE_KEY) || 'buyer';
+};
+
+const persistMode = (mode) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEY, mode);
+};
+
+const isSeller = (user) => user?.role === 'seller' || user?.accountType === 'seller';
+const isAdmin = (user) => user?.role === 'admin' || user?.accountType === 'admin';
+
+const resolveMode = (user, preferred = 'buyer') => {
+  if (!user) return 'buyer';
+  if (isAdmin(user)) return 'admin';
+  if (!isSeller(user)) return 'buyer';
+  if (!user.hasBuyerProfile) return 'seller';
+  return preferred === 'seller' ? 'seller' : 'buyer';
+};
+
+const sanitizeMode = (user, requested) => {
+  if (!user) return 'buyer';
+  if (isAdmin(user)) return 'admin';
+  if (!isSeller(user)) return 'buyer';
+  if (requested === 'seller') return 'seller';
+  if (requested === 'buyer' && user.hasBuyerProfile) return 'buyer';
+  return user.hasBuyerProfile ? 'buyer' : 'seller';
+};
+
 const initialState = {
   user: null,
   status: 'idle',
+  modeStatus: 'idle',
   error: null,
   isAuthenticated: false,
+  activeMode: readStoredMode(),
 };
 
 export const registerUser = createAsyncThunk(
@@ -18,6 +52,21 @@ export const registerUser = createAsyncThunk(
       return data;
     } catch (error) {
       const message = error.response?.data?.message || 'Registration failed';
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const createBuyerProfile = createAsyncThunk(
+  'auth/createBuyerProfile',
+  async ({ displayName }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.post('/seller/buyer-profile', { displayName });
+      toast.success(data.message || 'Buyer account ready');
+      return data.user;
+    } catch (error) {
+      const message = error.response?.data?.message || 'Unable to create buyer profile';
       toast.error(message);
       return rejectWithValue(message);
     }
@@ -129,6 +178,13 @@ const authSlice = createSlice({
     setUser(state, action) {
       state.user = action.payload;
       state.isAuthenticated = !!action.payload;
+      state.activeMode = resolveMode(action.payload, state.activeMode);
+      persistMode(state.activeMode);
+    },
+    setActiveMode(state, action) {
+      const nextMode = sanitizeMode(state.user, action.payload);
+      state.activeMode = nextMode;
+      persistMode(nextMode);
     },
   },
   extraReducers: (builder) => {
@@ -152,6 +208,8 @@ const authSlice = createSlice({
         state.status = 'succeeded';
         state.user = action.payload;
         state.isAuthenticated = true;
+        state.activeMode = resolveMode(action.payload, state.activeMode);
+        persistMode(state.activeMode);
       })
       .addCase(verifyEmail.rejected, (state, action) => {
         state.status = 'failed';
@@ -165,6 +223,8 @@ const authSlice = createSlice({
         state.status = 'succeeded';
         state.user = action.payload;
         state.isAuthenticated = true;
+        state.activeMode = resolveMode(action.payload, state.activeMode);
+        persistMode(state.activeMode);
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.status = 'failed';
@@ -178,17 +238,23 @@ const authSlice = createSlice({
         state.status = 'succeeded';
         state.user = action.payload;
         state.isAuthenticated = true;
+        state.activeMode = resolveMode(action.payload, state.activeMode);
+        persistMode(state.activeMode);
       })
       .addCase(fetchProfile.rejected, (state, action) => {
         state.status = 'guest';
         state.user = null;
         state.isAuthenticated = false;
         state.error = null;
+        state.activeMode = 'buyer';
+        persistMode('buyer');
       })
       .addCase(logoutUser.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;
         state.status = 'idle';
+        state.activeMode = 'buyer';
+        persistMode('buyer');
       })
       .addCase(forgotPassword.pending, (state) => {
         state.status = 'loading';
@@ -211,9 +277,24 @@ const authSlice = createSlice({
       .addCase(resetPassword.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+      })
+      .addCase(createBuyerProfile.pending, (state) => {
+        state.modeStatus = 'loading';
+        state.error = null;
+      })
+      .addCase(createBuyerProfile.fulfilled, (state, action) => {
+        state.modeStatus = 'succeeded';
+        state.user = action.payload;
+        state.isAuthenticated = true;
+        state.activeMode = 'buyer';
+        persistMode('buyer');
+      })
+      .addCase(createBuyerProfile.rejected, (state, action) => {
+        state.modeStatus = 'failed';
+        state.error = action.payload;
       });
   },
 });
 
-export const { clearError, setUser } = authSlice.actions;
+export const { clearError, setUser, setActiveMode } = authSlice.actions;
 export default authSlice.reducer;

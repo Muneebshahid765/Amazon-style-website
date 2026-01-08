@@ -516,6 +516,50 @@ export const getStore = async (req, res, next) => {
   }
 };
 
+export const createBuyerProfile = async (req, res, next) => {
+  try {
+    const sellerId = req.user._id;
+    const { displayName } = req.body;
+    const trimmedName = displayName?.trim();
+
+    const user = await User.findById(sellerId);
+    if (!user) {
+      return res.status(404).json({ message: 'Seller not found' });
+    }
+
+    const isSeller = user.role === 'seller' || user.accountType === 'seller';
+    if (!isSeller) {
+      return res.status(403).json({ message: 'Only sellers can create a buyer profile' });
+    }
+
+    if (user.hasBuyerProfile) {
+      return res.status(400).json({ message: 'Buyer profile already exists' });
+    }
+
+    const fallbackName = user.fullName?.trim() || user.firstName || user.email?.split('@')[0] || 'Buyer';
+    user.buyerProfile = {
+      displayName: trimmedName && trimmedName.length >= 2 ? trimmedName : fallbackName,
+      createdAt: new Date(),
+    };
+    user.hasBuyerProfile = true;
+
+    await user.save();
+
+    const safeUser = user.toObject();
+    ['password', 'refreshToken', 'resetPasswordToken', 'resetPasswordExpire', 'verificationToken', 'verificationTokenExpires'].forEach(
+      (field) => delete safeUser[field]
+    );
+
+    res.status(201).json({
+      message: 'Buyer account created successfully',
+      buyerProfile: user.buyerProfile,
+      user: safeUser,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const updateStore = async (req, res, next) => {
   try {
     const store = await Store.findOneAndUpdate({ seller: req.user._id }, req.body, { new: true });

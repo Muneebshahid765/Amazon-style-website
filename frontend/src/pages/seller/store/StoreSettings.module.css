@@ -52,4 +52,21 @@
 .saveBtn:hover { background: #059669; }
 .saveBtn:disabled { opacity: 0.7; cursor: not-allowed; }
 
+.buyerCard { background: linear-gradient(135deg, #f9fafb, #ffffff); border: 1px solid #e5e7eb; }
+.buyerHeader { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; }
+.buyerIcon { width: 48px; height: 48px; border-radius: 16px; background: #eef2ff; display: grid; place-items: center; font-size: 1.5rem; }
+.buyerStatus { display: flex; flex-direction: column; gap: 1.25rem; padding: 1.25rem; border-radius: 12px; background: white; border: 1px dashed #dbeafe; }
+.statGroup { display: flex; flex-direction: column; gap: 0.25rem; }
+.buyerLabel { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; color: #6b7280; }
+.buyerValue { font-size: 1.25rem; color: #111827; }
+.buyerMeta { margin: 0; color: #4b5563; }
+.pillButton { align-self: flex-start; padding: 0.75rem 1.5rem; border-radius: 999px; border: none; background: #111827; color: white; font-weight: 600; cursor: pointer; }
+.pillButton:hover { background: #000; }
+.buyerForm label { font-weight: 600; margin-bottom: 0.5rem; display: block; color: #1f2937; }
+.inputWrap { display: flex; flex-direction: column; gap: 0.35rem; }
+.inputWrap input { padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid #d1d5db; }
+.inputWrap small { color: #6b7280; }
+.primaryButton { width: 100%; padding: 0.9rem; border-radius: 10px; border: none; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600; cursor: pointer; box-shadow: 0 8px 15px rgba(99, 102, 241, 0.25); }
+.primaryButton:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+
 @media (max-width: 1024px) { .grid { grid-template-columns: 1fr; } .mediaGrid { grid-template-columns: 1fr; } .formGrid { grid-template-columns: 1fr; } }

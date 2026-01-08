@@ -116,6 +116,84 @@
   margin-right: 0;
 }
 
+.sidebarActions {
+  margin: 1.5rem;
+  margin-top: 2.5rem;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(6px);
+}
+
+.actionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.actionHeader h4 {
+  font-size: 0.95rem;
+  margin: 0;
+  color: #f8fafc;
+}
+
+.modeBadge {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.15rem 0.65rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.sellerMode {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.buyerMode {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+}
+
+.actionText {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0 0 1rem;
+  line-height: 1.4;
+}
+
+.actionButton {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(135deg, #34d399, #10b981);
+  color: #042f2e;
+  transition: opacity 0.2s ease;
+}
+
+.actionButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.actionLink {
+  margin-top: 0.75rem;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 @media (max-width: 1024px) {
   .sidebar {
     transform: translateX(-100%);

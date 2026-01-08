@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { FiEye, FiEyeOff, FiCheck, FiX } from 'react-icons/fi';
 import { useDispatch, useSelector } from 'react-redux';
 import { checkEmailAvailability } from '../../../redux/slices/registrationSlice';
@@ -6,7 +6,15 @@ import { validateEmail, validatePassword } from '../../../utils/validators';
 import useFormValidation from '../../../hooks/useFormValidation';
 import styles from './PersonalInformation.module.css';
 
-const PersonalInformation = ({ onNext, onPrevious, initialData }) => {
+const PersonalInformation = ({
+  onNext,
+  onPrevious,
+  initialData,
+  lockedFields = [],
+  hidePasswordFields = false,
+  skipEmailCheck = false,
+  upgradeMessage = '',
+}) => {
   const dispatch = useDispatch();
   const { emailAvailable, loading } = useSelector((state) => state.registration);
   const [showPassword, setShowPassword] = useState(false);
@@ -43,27 +51,31 @@ const PersonalInformation = ({ onNext, onPrevious, initialData }) => {
       minLength: 10,
       minLengthMessage: 'Please enter a valid phone number',
     },
-    password: {
-      required: true,
-      requiredMessage: 'Password is required',
-      custom: (value) => {
-        const result = validatePassword(value);
-        if (!result.isValid) {
-          return 'Password does not meet requirements';
-        }
-        return '';
-      },
-    },
-    confirmPassword: {
-      required: true,
-      requiredMessage: 'Please confirm your password',
-      custom: (value, allValues) => {
-        if (value !== allValues.password) {
-          return 'Passwords do not match';
-        }
-        return '';
-      },
-    },
+    ...(hidePasswordFields
+      ? {}
+      : {
+          password: {
+            required: true,
+            requiredMessage: 'Password is required',
+            custom: (value) => {
+              const result = validatePassword(value);
+              if (!result.isValid) {
+                return 'Password does not meet requirements';
+              }
+              return '';
+            },
+          },
+          confirmPassword: {
+            required: true,
+            requiredMessage: 'Please confirm your password',
+            custom: (value, allValues) => {
+              if (value !== allValues.password) {
+                return 'Passwords do not match';
+              }
+              return '';
+            },
+          },
+        }),
   };
 
   const defaultValues = {
@@ -75,7 +87,7 @@ const PersonalInformation = ({ onNext, onPrevious, initialData }) => {
     confirmPassword: '',
   };
 
-  const mergedInitialValues = { ...defaultValues, ...(initialData || {}) };
+  const mergedInitialValues = useMemo(() => ({ ...defaultValues, ...(initialData || {}) }), [initialData]);
 
   const { values, errors, touched, handleChange, handleBlur, validateAll, setFieldValue } =
     useFormValidation(mergedInitialValues, validationRules);
@@ -90,6 +102,18 @@ const PersonalInformation = ({ onNext, onPrevious, initialData }) => {
   }, [values.password]);
 
   useEffect(() => {
+    if (!initialData) return;
+    Object.entries(initialData).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        setFieldValue(key, value);
+      }
+    });
+  }, [initialData, setFieldValue]);
+
+  const isLocked = (field) => lockedFields.includes(field);
+
+  useEffect(() => {
+    if (isLocked('email') || skipEmailCheck) return;
     if (values.email && validateEmail(values.email)) {
       if (emailCheckTimeout) {
         clearTimeout(emailCheckTimeout);
@@ -112,10 +136,15 @@ const PersonalInformation = ({ onNext, onPrevious, initialData }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateAll()) {
-      if (emailAvailable === false) {
+      if (!isLocked('email') && emailAvailable === false) {
         return;
       }
-      onNext(values);
+      const submission = { ...values };
+      if (hidePasswordFields) {
+        delete submission.password;
+        delete submission.confirmPassword;
+      }
+      onNext(submission);
     }
   };
 
@@ -136,7 +165,11 @@ const PersonalInformation = ({ onNext, onPrevious, initialData }) => {
   return (
     <div className={styles.container}>
       <h2 className={styles.title}>Personal Information</h2>
-      <p className={styles.subtitle}>Please provide your personal details</p>
+      <p className={styles.subtitle}>
+        Please provide your personal details{' '}
+        {lockedFields.length > 0 && <span className={styles.lockedNote}>Some fields are locked to match your buyer profile.</span>}
+      </p>
+      {upgradeMessage && <div className={styles.upgradeNotice}>{upgradeMessage}</div>}
 
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.row}>
@@ -153,6 +186,7 @@ const PersonalInformation = ({ onNext, onPrevious, initialData }) => {
               onBlur={handleBlur}
               className={`${styles.input} ${touched.firstName && errors.firstName ? styles.inputError : ''}`}
               placeholder="Enter your first name"
+              readOnly={isLocked('firstName')}
             />
             {touched.firstName && errors.firstName && (
               <span className={styles.errorMessage}>{errors.firstName}</span>
@@ -193,6 +227,8 @@ const PersonalInformation = ({ onNext, onPrevious, initialData }) => {
               onBlur={handleBlur}
               className={`${styles.input} ${touched.email && errors.email ? styles.inputError : ''}`}
               placeholder="Enter your email address"
+              readOnly={isLocked('email')}
+              disabled={isLocked('email')}
             />
             {values.email && validateEmail(values.email) && emailAvailable !== null && (
               <span className={styles.availabilityIcon}>
@@ -210,9 +246,6 @@ const PersonalInformation = ({ onNext, onPrevious, initialData }) => {
           {emailAvailable === false && (
             <span className={styles.errorMessage}>This email is already registered</span>
           )}
-          {emailAvailable === true && (
-            <span className={styles.successMessage}>Email is available</span>
-          )}
         </div>
 
         <div className={styles.formGroup}>
@@ -227,105 +260,99 @@ const PersonalInformation = ({ onNext, onPrevious, initialData }) => {
             onChange={handleChange}
             onBlur={handleBlur}
             className={`${styles.input} ${touched.phone && errors.phone ? styles.inputError : ''}`}
-            placeholder="+1 234 567 8900"
+            placeholder="Enter your phone number"
+            readOnly={isLocked('phone')}
           />
           {touched.phone && errors.phone && (
             <span className={styles.errorMessage}>{errors.phone}</span>
           )}
         </div>
 
-        <div className={styles.formGroup}>
-          <label htmlFor="password" className={styles.label}>
-            Password <span className={styles.required}>*</span>
-          </label>
-          <div className={styles.passwordWrapper}>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              id="password"
-              name="password"
-              value={values.password}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className={`${styles.input} ${touched.password && errors.password ? styles.inputError : ''}`}
-              placeholder="Create a strong password"
-            />
-            <button
-              type="button"
-              className={styles.togglePassword}
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label="Toggle password visibility"
-            >
-              {showPassword ? <FiEyeOff /> : <FiEye />}
-            </button>
-          </div>
-          {touched.password && errors.password && (
-            <span className={styles.errorMessage}>{errors.password}</span>
-          )}
-
-          {values.password && passwordStrength && (
-            <div className={styles.passwordStrength}>
-              <div className={styles.strengthBar}>
-                <div className={`${styles.strengthFill} ${getStrengthColor()}`}></div>
+        {!hidePasswordFields && (
+          <>
+            <div className={styles.formGroup}>
+              <label htmlFor="password" className={styles.label}>
+                Password <span className={styles.required}>*</span>
+              </label>
+              <div className={styles.inputWrapper}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  name="password"
+                  value={values.password}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`${styles.input} ${touched.password && errors.password ? styles.inputError : ''}`}
+                  placeholder="Create a strong password"
+                />
+                <button
+                  type="button"
+                  className={styles.eyeButton}
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label="Toggle password visibility"
+                >
+                  {showPassword ? <FiEyeOff /> : <FiEye />}
+                </button>
               </div>
-              <span className={`${styles.strengthText} ${getStrengthColor()}`}>
-                {passwordStrength.strength.charAt(0).toUpperCase() + passwordStrength.strength.slice(1)}
-              </span>
+              {touched.password && errors.password && (
+                <span className={styles.errorMessage}>{errors.password}</span>
+              )}
             </div>
-          )}
 
-          {values.password && (
-            <div className={styles.passwordRequirements}>
-              <p className={styles.requirementsTitle}>Password must contain:</p>
-              <ul className={styles.requirementsList}>
-                <li className={passwordStrength?.criteria.minLength ? styles.met : styles.unmet}>
-                  {passwordStrength?.criteria.minLength ? <FiCheck /> : <FiX />}
-                  At least 8 characters
-                </li>
-                <li className={passwordStrength?.criteria.hasUppercase ? styles.met : styles.unmet}>
-                  {passwordStrength?.criteria.hasUppercase ? <FiCheck /> : <FiX />}
-                  One uppercase letter
-                </li>
-                <li className={passwordStrength?.criteria.hasNumber ? styles.met : styles.unmet}>
-                  {passwordStrength?.criteria.hasNumber ? <FiCheck /> : <FiX />}
-                  One number
-                </li>
-                <li className={passwordStrength?.criteria.hasSpecialChar ? styles.met : styles.unmet}>
-                  {passwordStrength?.criteria.hasSpecialChar ? <FiCheck /> : <FiX />}
-                  One special character
-                </li>
-              </ul>
+            {values.password && (
+              <div className={styles.passwordRequirements}>
+                <p className={styles.requirementsTitle}>Password must contain:</p>
+                <ul className={styles.requirementsList}>
+                  <li className={passwordStrength?.criteria.minLength ? styles.met : styles.unmet}>
+                    {passwordStrength?.criteria.minLength ? <FiCheck /> : <FiX />}
+                    At least 8 characters
+                  </li>
+                  <li className={passwordStrength?.criteria.hasUppercase ? styles.met : styles.unmet}>
+                    {passwordStrength?.criteria.hasUppercase ? <FiCheck /> : <FiX />}
+                    One uppercase letter
+                  </li>
+                  <li className={passwordStrength?.criteria.hasNumber ? styles.met : styles.unmet}>
+                    {passwordStrength?.criteria.hasNumber ? <FiCheck /> : <FiX />}
+                    One number
+                  </li>
+                  <li className={passwordStrength?.criteria.hasSpecialChar ? styles.met : styles.unmet}>
+                    {passwordStrength?.criteria.hasSpecialChar ? <FiCheck /> : <FiX />}
+                    One special character
+                  </li>
+                </ul>
+              </div>
+            )}
+
+            <div className={styles.formGroup}>
+              <label htmlFor="confirmPassword" className={styles.label}>
+                Confirm Password <span className={styles.required}>*</span>
+              </label>
+              <div className={styles.inputWrapper}>
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={values.confirmPassword}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`${styles.input} ${touched.confirmPassword && errors.confirmPassword ? styles.inputError : ''}`}
+                  placeholder="Confirm your password"
+                />
+                <button
+                  type="button"
+                  className={styles.eyeButton}
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label="Toggle confirm password visibility"
+                >
+                  {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
+                </button>
+              </div>
+              {touched.confirmPassword && errors.confirmPassword && (
+                <span className={styles.errorMessage}>{errors.confirmPassword}</span>
+              )}
             </div>
-          )}
-        </div>
-
-        <div className={styles.formGroup}>
-          <label htmlFor="confirmPassword" className={styles.label}>
-            Confirm Password <span className={styles.required}>*</span>
-          </label>
-          <div className={styles.passwordWrapper}>
-            <input
-              type={showConfirmPassword ? 'text' : 'password'}
-              id="confirmPassword"
-              name="confirmPassword"
-              value={values.confirmPassword}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className={`${styles.input} ${touched.confirmPassword && errors.confirmPassword ? styles.inputError : ''}`}
-              placeholder="Confirm your password"
-            />
-            <button
-              type="button"
-              className={styles.togglePassword}
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              aria-label="Toggle confirm password visibility"
-            >
-              {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
-            </button>
-          </div>
-          {touched.confirmPassword && errors.confirmPassword && (
-            <span className={styles.errorMessage}>{errors.confirmPassword}</span>
-          )}
-        </div>
+          </>
+        )}
 
         <div className={styles.buttonGroup}>
           <button type="button" onClick={onPrevious} className={styles.secondaryButton}>

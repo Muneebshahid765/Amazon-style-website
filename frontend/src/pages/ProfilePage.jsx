@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { FiEdit2, FiCamera, FiTrash2, FiUser, FiMail, FiPhone, FiSave, FiX } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { FiEdit2, FiCamera, FiTrash2, FiUser, FiMail, FiPhone, FiSave, FiX, FiBriefcase, FiArrowRight } from 'react-icons/fi';
 import {
   fetchUserProfile,
   updateUserProfile,
@@ -11,6 +12,7 @@ import styles from '../styles/ProfilePage.module.css';
 
 const ProfilePage = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { profile, status } = useSelector((state) => state.user);
   const [isEditing, setIsEditing] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
@@ -227,6 +229,28 @@ const ProfilePage = () => {
             </div>
           </form>
         </div>
+
+        {profile && profile.role !== 'seller' && (
+          <div className={styles.sellerUpgrade}>
+            <div className={styles.sellerContent}>
+              <div className={styles.sellerIcon}>
+                <FiBriefcase />
+              </div>
+              <div>
+                <p className={styles.sellerBadge}>Grow With NovaMart</p>
+                <h3>Ready to open your own store?</h3>
+                <p>
+                  Turn your buyer account into a full seller hub with store analytics, inventory tools, and payouts.
+                  We’ll reuse your saved profile details to fast-track the process.
+                </p>
+              </div>
+            </div>
+            <button className={styles.sellerButton} onClick={() => navigate('/register?mode=seller&source=profile')}>
+              Create Seller Account
+              <FiArrowRight />
+            </button>
+          </div>
+        )}
 
         <div className={styles.accountStats}>
           <div className={styles.statCard}>

@@ -48,6 +48,7 @@ router.get('/store', sellerController.getStore);
 router.put('/store', sellerController.updateStore);
 router.put('/store/business-info', sellerController.updateBusinessInfo);
 router.put('/store/vacation-mode', sellerController.updateVacationMode);
+router.post('/buyer-profile', sellerController.createBuyerProfile);
 
 // Reviews
 router.get('/reviews', sellerController.getReviews);

@@ -4,7 +4,7 @@ import { sendVerificationCode, verifyCode, resendVerificationCode, completeRegis
 import useCountdown from '../../../hooks/useCountdown';
 import styles from './Verification.module.css';
 
-const Verification = ({ onPrevious, onComplete }) => {
+const Verification = ({ onPrevious, onComplete, allowSellerUpgrade = false }) => {
   const dispatch = useDispatch();
   const { registrationId, maskedEmail, isEmailVerified, verificationSent, loading } = useSelector(
     (state) => state.registration
@@ -17,6 +17,7 @@ const Verification = ({ onPrevious, onComplete }) => {
   const { seconds, isActive, start } = useCountdown(60);
 
   useEffect(() => {
+    if (allowSellerUpgrade) return;
     if (!verificationSent && registrationId) {
       dispatch(sendVerificationCode(registrationId));
       start();
@@ -66,6 +67,10 @@ const Verification = ({ onPrevious, onComplete }) => {
   };
 
   const handleVerifyCode = async () => {
+    if (allowSellerUpgrade) {
+      onComplete();
+      return;
+    }
     const codeString = code.join('');
     if (codeString.length !== 6) {
       setVerificationError('Please enter the complete 6-digit code');
@@ -94,19 +99,19 @@ const Verification = ({ onPrevious, onComplete }) => {
   };
 
   const handleCompleteRegistration = async () => {
-    if (!isEmailVerified) {
+    if (!allowSellerUpgrade && !isEmailVerified) {
       setVerificationError('Please verify your email first');
       return;
     }
 
-    if (!agreeToTerms || !agreeToPrivacy) {
+    if (!allowSellerUpgrade && (!agreeToTerms || !agreeToPrivacy)) {
       setVerificationError('Please agree to Terms & Conditions and Privacy Policy');
       return;
     }
 
     try {
       const result = await dispatch(
-        completeRegistration({ registrationId, agreeToTerms, agreeToPrivacy })
+        completeRegistration({ registrationId, agreeToTerms: allowSellerUpgrade || agreeToTerms, agreeToPrivacy: allowSellerUpgrade || agreeToPrivacy })
       ).unwrap();
       onComplete(result);
     } catch (error) {
@@ -117,69 +122,73 @@ const Verification = ({ onPrevious, onComplete }) => {
   return (
     <div className={styles.container}>
       <h2 className={styles.title}>Email Verification</h2>
-      <p className={styles.subtitle}>
-        We've sent a 6-digit verification code to
-        <br />
-        <strong>{maskedEmail}</strong>
-      </p>
+      {!allowSellerUpgrade && (
+        <p className={styles.subtitle}>
+          We've sent a 6-digit verification code to
+          <br />
+          <strong>{maskedEmail}</strong>
+        </p>
+      )}
 
-      <div className={styles.codeSection}>
-        <div className={styles.codeInputs}>
-          {code.map((digit, index) => (
-            <input
-              key={index}
-              ref={(el) => (inputRefs.current[index] = el)}
-              type="text"
-              inputMode="numeric"
-              maxLength="1"
-              value={digit}
-              onChange={(e) => handleCodeChange(index, e.target.value)}
-              onKeyDown={(e) => handleKeyDown(index, e)}
-              onPaste={handlePaste}
-              className={`${styles.codeInput} ${isEmailVerified ? styles.verified : ''}`}
-              disabled={isEmailVerified}
-              autoFocus={index === 0}
-            />
-          ))}
-        </div>
-
-        {!isEmailVerified && (
-          <button
-            type="button"
-            onClick={handleVerifyCode}
-            className={styles.verifyButton}
-            disabled={loading || code.join('').length !== 6}
-          >
-            {loading ? 'Verifying...' : 'Verify Code'}
-          </button>
-        )}
-
-        {isEmailVerified && (
-          <div className={styles.verifiedMessage}>
-            <svg className={styles.checkmark} viewBox="0 0 52 52">
-              <circle className={styles.checkmarkCircle} cx="26" cy="26" r="25" fill="none" />
-              <path className={styles.checkmarkCheck} fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
-            </svg>
-            <p className={styles.verifiedText}>Email verified successfully!</p>
+      {!allowSellerUpgrade && (
+        <div className={styles.codeSection}>
+          <div className={styles.codeInputs}>
+            {code.map((digit, index) => (
+              <input
+                key={index}
+                ref={(el) => (inputRefs.current[index] = el)}
+                type="text"
+                inputMode="numeric"
+                maxLength="1"
+                value={digit}
+                onChange={(e) => handleCodeChange(index, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(index, e)}
+                onPaste={handlePaste}
+                className={`${styles.codeInput} ${isEmailVerified ? styles.verified : ''}`}
+                disabled={isEmailVerified}
+                autoFocus={index === 0}
+              />
+            ))}
           </div>
-        )}
 
-        {verificationError && (
-          <div className={styles.errorMessage}>{verificationError}</div>
-        )}
+          {!isEmailVerified && (
+            <button
+              type="button"
+              onClick={handleVerifyCode}
+              className={styles.verifyButton}
+              disabled={loading || code.join('').length !== 6}
+            >
+              {loading ? 'Verifying...' : 'Verify Code'}
+            </button>
+          )}
 
-        <div className={styles.resendSection}>
-          <p className={styles.resendText}>Didn't receive the code?</p>
-          <button
-            type="button"
-            onClick={handleResendCode}
-            className={styles.resendButton}
-            disabled={isActive || loading}
-          >
-            {isActive ? `Resend in ${seconds}s` : 'Resend Code'}
-          </button>
+          {isEmailVerified && (
+            <div className={styles.verifiedMessage}>
+              <svg className={styles.checkmark} viewBox="0 0 52 52">
+                <circle className={styles.checkmarkCircle} cx="26" cy="26" r="25" fill="none" />
+                <path className={styles.checkmarkCheck} fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
+              </svg>
+              <p className={styles.verifiedText}>Email verified successfully!</p>
+            </div>
+          )}
+
+          {verificationError && (
+            <div className={styles.errorMessage}>{verificationError}</div>
+          )}
+
+          <div className={styles.resendSection}>
+            <p className={styles.resendText}>Didn't receive the code?</p>
+            <button
+              type="button"
+              onClick={handleResendCode}
+              className={styles.resendButton}
+              disabled={isActive || loading}
+            >
+              {isActive ? `Resend in ${seconds}s` : 'Resend Code'}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className={styles.termsSection}>
         <h3 className={styles.termsTitle}>Terms & Conditions</h3>
@@ -187,9 +196,10 @@ const Verification = ({ onPrevious, onComplete }) => {
         <label className={styles.checkboxLabel}>
           <input
             type="checkbox"
-            checked={agreeToTerms}
+            checked={allowSellerUpgrade || agreeToTerms}
             onChange={(e) => setAgreeToTerms(e.target.checked)}
             className={styles.checkbox}
+            disabled={allowSellerUpgrade}
           />
           <span>
             I agree to the{' '}
@@ -202,9 +212,10 @@ const Verification = ({ onPrevious, onComplete }) => {
         <label className={styles.checkboxLabel}>
           <input
             type="checkbox"
-            checked={agreeToPrivacy}
+            checked={allowSellerUpgrade || agreeToPrivacy}
             onChange={(e) => setAgreeToPrivacy(e.target.checked)}
             className={styles.checkbox}
+            disabled={allowSellerUpgrade}
           />
           <span>
             I agree to the{' '}
@@ -223,9 +234,12 @@ const Verification = ({ onPrevious, onComplete }) => {
           type="button"
           onClick={handleCompleteRegistration}
           className={styles.primaryButton}
-          disabled={!isEmailVerified || !agreeToTerms || !agreeToPrivacy || loading}
+          disabled={
+            loading ||
+            (!allowSellerUpgrade && (!isEmailVerified || !agreeToTerms || !agreeToPrivacy))
+          }
         >
-          {loading ? 'Completing...' : 'Complete Registration'}
+          {loading ? 'Completing...' : allowSellerUpgrade ? 'Finalize Upgrade' : 'Complete Registration'}
         </button>
       </div>
     </div>

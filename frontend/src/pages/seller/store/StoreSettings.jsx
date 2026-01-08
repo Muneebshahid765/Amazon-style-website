@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { fetchStore, updateStore, updateBusinessInfo, updateVacationMode } from '../../../redux/slices/sellerSlice';
+import { createBuyerProfile } from '../../../redux/slices/authSlice';
 import { FiSave, FiUpload, FiCalendar, FiCheck, FiAlertCircle } from 'react-icons/fi';
 import styles from './StoreSettings.module.css';
 
 const StoreSettings = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { store, loading } = useSelector((state) => state.seller);
+  const { user, modeStatus } = useSelector((state) => state.auth);
   const [activeTab, setActiveTab] = useState('general');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [buyerDisplayName, setBuyerDisplayName] = useState('');
 
   const [formData, setFormData] = useState({
     storeName: '',
@@ -42,6 +47,12 @@ const StoreSettings = () => {
   useEffect(() => {
     dispatch(fetchStore());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!user) return;
+    const fallback = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    setBuyerDisplayName(user.buyerProfile?.displayName || fallback || '');
+  }, [user]);
 
   useEffect(() => {
     if (store) {
@@ -91,6 +102,20 @@ const StoreSettings = () => {
       ...formData,
       socialMedia: { ...formData.socialMedia, [e.target.name]: e.target.value },
     });
+  };
+
+  const handleCreateBuyerProfile = async () => {
+    if (!buyerDisplayName.trim()) {
+      setMessage({ type: 'error', text: 'Display name is required to create buyer account.' });
+      return;
+    }
+    setMessage({ type: '', text: '' });
+    const result = await dispatch(createBuyerProfile({ displayName: buyerDisplayName.trim() }));
+    if (createBuyerProfile.fulfilled.match(result)) {
+      setMessage({ type: 'success', text: 'Buyer profile created successfully! You can now switch modes.' });
+    } else {
+      setMessage({ type: 'error', text: result.payload || 'Failed to create buyer account' });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -236,6 +261,59 @@ const StoreSettings = () => {
                   <p><strong>Total Sales:</strong> {store?.totalSales || 0}</p>
                   <p><strong>Commission Rate:</strong> {store?.commission || 10}%</p>
                 </div>
+              </div>
+
+              <div className={`${styles.card} ${styles.buyerCard}`}>
+                <div className={styles.buyerHeader}>
+                  <div className={styles.buyerIcon}>🛍️</div>
+                  <div>
+                    <h3>Buyer Account Preview</h3>
+                    <p className={styles.cardDescription}>
+                      Experience NovaMart as a customer. Use this buyer profile to test your storefront or place personal orders.
+                    </p>
+                  </div>
+                </div>
+
+                {user?.hasBuyerProfile ? (
+                  <div className={styles.buyerStatus}>
+                    <div className={styles.statGroup}>
+                      <span className={styles.buyerLabel}>Display Name</span>
+                      <strong className={styles.buyerValue}>{user?.buyerProfile?.displayName || user?.firstName}</strong>
+                    </div>
+                    <div className={styles.statGroup}>
+                      <span className={styles.buyerLabel}>Created on</span>
+                      <p className={styles.buyerMeta}>
+                        {new Date(user?.buyerProfile?.createdAt || user?.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button type="button" className={styles.pillButton} onClick={() => navigate('/dashboard')}>
+                      Go to Buyer Dashboard
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className={styles.buyerForm}>
+                      <label>Buyer Display Name</label>
+                      <div className={styles.inputWrap}>
+                        <input
+                          type="text"
+                          value={buyerDisplayName}
+                          onChange={(e) => setBuyerDisplayName(e.target.value)}
+                          placeholder="e.g. John from NovaMart"
+                        />
+                        <small>Create a friendly persona shoppers will see.</small>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.primaryButton}
+                      onClick={handleCreateBuyerProfile}
+                      disabled={modeStatus === 'loading'}
+                    >
+                      {modeStatus === 'loading' ? 'Creating Buyer Account...' : 'Create Buyer Account'}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

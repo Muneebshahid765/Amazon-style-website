@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   FiHome,
   FiPackage,
@@ -15,8 +16,25 @@ import {
   FiShield,
 } from 'react-icons/fi';
 import styles from './SellerSidebar.module.css';
+import { setActiveMode } from '../../redux/slices/authSlice';
 
 const SellerSidebar = ({ isOpen, onToggle }) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { user, activeMode } = useSelector((state) => state.auth);
+
+  const isSeller = user?.role === 'seller' || user?.accountType === 'seller';
+  const hasBuyerProfile = !!user?.hasBuyerProfile;
+
+  const handleSwitchToBuyer = () => {
+    if (!hasBuyerProfile) {
+      navigate('/seller/settings');
+      return;
+    }
+    dispatch(setActiveMode('buyer'));
+    navigate('/dashboard');
+  };
+
   const navItems = [
     { path: '/seller', icon: FiHome, label: 'Dashboard', exact: true },
     {
@@ -113,6 +131,34 @@ const SellerSidebar = ({ isOpen, onToggle }) => {
           </div>
         ))}
       </nav>
+      {isSeller && (
+        <div className={styles.sidebarActions}>
+          <div className={styles.actionHeader}>
+            <h4>Account Mode</h4>
+            <span className={`${styles.modeBadge} ${activeMode === 'seller' ? styles.sellerMode : styles.buyerMode}`}>
+              {activeMode === 'seller' ? 'Selling' : 'Buying'}
+            </span>
+          </div>
+          <p className={styles.actionText}>
+            {hasBuyerProfile
+              ? 'Switch to your buyer dashboard anytime to browse the marketplace like your customers.'
+              : 'Create your buyer profile from settings to start shopping like your customers.'}
+          </p>
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={handleSwitchToBuyer}
+            disabled={!hasBuyerProfile}
+          >
+            {hasBuyerProfile ? 'Switch to Buyer Account' : 'Create Buyer Account'}
+          </button>
+          {!hasBuyerProfile && (
+            <button type="button" className={styles.actionLink} onClick={() => navigate('/seller/settings')}>
+              Go to Settings
+            </button>
+          )}
+        </div>
+      )}
     </aside>
   );
 };
