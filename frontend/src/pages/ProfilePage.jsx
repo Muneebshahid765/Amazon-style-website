@@ -14,6 +14,7 @@ const ProfilePage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { profile, status } = useSelector((state) => state.user);
+  const { activeMode, user: authUser } = useSelector((state) => state.auth);
   const [isEditing, setIsEditing] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [formData, setFormData] = useState({
@@ -85,6 +86,9 @@ const ProfilePage = () => {
     }
   };
 
+  const hasSellerAccount = Boolean(authUser && (authUser.role === 'seller' || authUser.accountType === 'seller'));
+  const showFullBuyerProfile = !hasSellerAccount;
+
   if (status === 'loading' && !profile) {
     return (
       <div className={styles.loading}>
@@ -133,101 +137,129 @@ const ProfilePage = () => {
             />
           </div>
           <h2 className={styles.userName}>{profile?.fullName}</h2>
-          <p className={styles.userRole}>{profile?.role}</p>
+          <p className={styles.userRole}>
+            {activeMode === 'seller' ? 'Seller' : activeMode === 'admin' ? 'Admin' : 'Buyer'}
+          </p>
         </div>
 
         <div className={styles.profileInfo}>
           <div className={styles.sectionHeader}>
             <h3>Personal Information</h3>
-            {!isEditing ? (
-              <button className={styles.editBtn} onClick={() => setIsEditing(true)}>
-                <FiEdit2 /> Edit Profile
-              </button>
-            ) : (
-              <div className={styles.editActions}>
-                <button className={styles.saveBtn} onClick={handleSubmit}>
-                  <FiSave /> Save
+            {showFullBuyerProfile &&
+              (!isEditing ? (
+                <button className={styles.editBtn} onClick={() => setIsEditing(true)}>
+                  <FiEdit2 /> Edit Profile
                 </button>
-                <button className={styles.cancelBtn} onClick={handleCancel}>
-                  <FiX /> Cancel
-                </button>
-              </div>
-            )}
+              ) : (
+                <div className={styles.editActions}>
+                  <button className={styles.saveBtn} onClick={handleSubmit}>
+                    <FiSave /> Save
+                  </button>
+                  <button className={styles.cancelBtn} onClick={handleCancel}>
+                    <FiX /> Cancel
+                  </button>
+                </div>
+              ))}
           </div>
 
-          <form onSubmit={handleSubmit} className={styles.profileForm}>
-            <div className={styles.formRow}>
+          {showFullBuyerProfile ? (
+            <form onSubmit={handleSubmit} className={styles.profileForm}>
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label>
+                    <FiUser /> First Name
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="firstName"
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  ) : (
+                    <p className={styles.fieldValue}>{profile?.firstName}</p>
+                  )}
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>
+                    <FiUser /> Last Name
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="lastName"
+                      value={formData.lastName}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  ) : (
+                    <p className={styles.fieldValue}>{profile?.lastName}</p>
+                  )}
+                </div>
+              </div>
+
               <div className={styles.formGroup}>
                 <label>
-                  <FiUser /> First Name
+                  <FiMail /> Email
                 </label>
                 {isEditing ? (
                   <input
-                    type="text"
-                    name="firstName"
-                    value={formData.firstName}
+                    type="email"
+                    name="email"
+                    value={formData.email}
                     onChange={handleInputChange}
                     required
                   />
                 ) : (
-                  <p className={styles.fieldValue}>{profile?.firstName}</p>
+                  <p className={styles.fieldValue}>{profile?.email}</p>
+                )}
+                {!profile?.isVerified && (
+                  <span className={styles.unverifiedBadge}>Email not verified</span>
                 )}
               </div>
 
               <div className={styles.formGroup}>
                 <label>
-                  <FiUser /> Last Name
+                  <FiPhone /> Phone
                 </label>
                 {isEditing ? (
                   <input
-                    type="text"
-                    name="lastName"
-                    value={formData.lastName}
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
                     onChange={handleInputChange}
-                    required
                   />
                 ) : (
-                  <p className={styles.fieldValue}>{profile?.lastName}</p>
+                  <p className={styles.fieldValue}>{profile?.phone || 'Not provided'}</p>
                 )}
               </div>
+            </form>
+          ) : (
+            <div className={styles.buyerSummaryCard}>
+              <div className={styles.buyerSummaryHeader}>
+                <div className={styles.buyerSummaryIcon}>
+                  <FiUser />
+                </div>
+                <div>
+                  <p className={styles.buyerSummaryLabel}>Buyer Account</p>
+                  <p className={styles.buyerSummaryHint}>
+                    Your detailed personal info now lives inside your seller profile. Checkout will still
+                    use this saved buyer display name.
+                  </p>
+                </div>
+              </div>
+              <div className={styles.buyerSummaryContent}>
+                <div className={styles.summaryRow}>
+                  <span className={styles.summaryTitle}>Display Name</span>
+                  <span className={styles.summaryValue}>
+                    {profile?.buyerProfile?.displayName || profile?.fullName || 'Buyer'}
+                  </span>
+                </div>
+              </div>
             </div>
-
-            <div className={styles.formGroup}>
-              <label>
-                <FiMail /> Email
-              </label>
-              {isEditing ? (
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                />
-              ) : (
-                <p className={styles.fieldValue}>{profile?.email}</p>
-              )}
-              {!profile?.isVerified && (
-                <span className={styles.unverifiedBadge}>Email not verified</span>
-              )}
-            </div>
-
-            <div className={styles.formGroup}>
-              <label>
-                <FiPhone /> Phone
-              </label>
-              {isEditing ? (
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                />
-              ) : (
-                <p className={styles.fieldValue}>{profile?.phone || 'Not provided'}</p>
-              )}
-            </div>
-          </form>
+          )}
         </div>
 
         {profile && profile.role !== 'seller' && (

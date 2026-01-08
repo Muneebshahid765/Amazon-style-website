@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useState, useEffect, useMemo } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { FiUser, FiMapPin, FiHeart, FiPackage, FiLock } from 'react-icons/fi';
 import ProfilePage from './ProfilePage';
@@ -8,11 +8,19 @@ import ChangePassword from '../components/user/ChangePassword';
 import OrderHistory from './OrderHistory';
 import Wishlist from './Wishlist';
 import styles from '../styles/UserDashboard.module.css';
+import { logoutUser } from '../redux/slices/authSlice';
 
 const UserDashboard = () => {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user, activeMode } = useSelector((state) => state.auth);
   const [activeTab, setActiveTab] = useState('profile');
+  const isSellerAccount = Boolean(user && (user.role === 'seller' || user.accountType === 'seller'));
+
+  const handleLogout = async () => {
+    await dispatch(logoutUser());
+    navigate('/login');
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -27,13 +35,26 @@ const UserDashboard = () => {
     }
   }, [user, activeMode, navigate]);
 
-  const tabs = [
-    { id: 'profile', label: 'Profile', icon: FiUser },
-    { id: 'addresses', label: 'Addresses', icon: FiMapPin },
-    { id: 'orders', label: 'Orders', icon: FiPackage },
-    { id: 'wishlist', label: 'Wishlist', icon: FiHeart },
-    { id: 'security', label: 'Security', icon: FiLock },
-  ];
+  const tabs = useMemo(() => {
+    const baseTabs = [
+      { id: 'profile', label: 'Profile', icon: FiUser },
+      { id: 'addresses', label: 'Addresses', icon: FiMapPin },
+      { id: 'orders', label: 'Orders', icon: FiPackage },
+      { id: 'wishlist', label: 'Wishlist', icon: FiHeart },
+      { id: 'security', label: 'Security', icon: FiLock },
+    ];
+    if (!isSellerAccount) {
+      return baseTabs;
+    }
+    return baseTabs.filter((tab) => tab.id !== 'addresses' && tab.id !== 'security');
+  }, [isSellerAccount]);
+
+  useEffect(() => {
+    if (tabs.length === 0) return;
+    if (!tabs.some((tab) => tab.id === activeTab)) {
+      setActiveTab(tabs[0].id);
+    }
+  }, [tabs, activeTab]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -71,6 +92,9 @@ const UserDashboard = () => {
             );
           })}
         </nav>
+        <button type="button" className={styles.logoutBtn} onClick={handleLogout}>
+          Logout
+        </button>
       </div>
 
       <div className={styles.content}>{renderContent()}</div>

@@ -167,6 +167,73 @@
   box-shadow: 0 12px 25px rgba(17, 24, 39, 0.15);
 }
 
+.buyerSummaryCard {
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.9), rgba(237, 242, 247, 0.9));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.buyerSummaryHeader {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+
+.buyerSummaryIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(102, 126, 234, 0.18);
+  color: #4c51bf;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.buyerSummaryLabel {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4c51bf;
+  margin: 0;
+}
+
+.buyerSummaryHint {
+  margin: 0.35rem 0 0;
+  color: #4a5568;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.buyerSummaryContent {
+  border-top: 1px dashed rgba(99, 102, 241, 0.4);
+  padding-top: 1rem;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+}
+
+.summaryTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.summaryValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
 .sectionHeader {
   display: flex;
   justify-content: space-between;

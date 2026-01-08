@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { FiShoppingBag, FiUser, FiSun, FiMoon, FiLogOut } from 'react-icons/fi';
+import { FiShoppingBag, FiUser, FiSun, FiMoon } from 'react-icons/fi';
 import { toggleTheme, toggleSidebar } from '../../redux/slices/uiSlice.js';
-import { logoutUser, setActiveMode } from '../../redux/slices/authSlice.js';
+import { setActiveMode } from '../../redux/slices/authSlice.js';
 import ModeSwitch from './ModeSwitch.jsx';
 import styles from '../../styles/Navbar.module.css';
 
@@ -16,11 +16,6 @@ const Navbar = () => {
 
   const isSeller = useMemo(() => user && (user.role === 'seller' || user.accountType === 'seller'), [user]);
   const isAdmin = useMemo(() => user && (user.role === 'admin' || user.accountType === 'admin'), [user]);
-
-  const handleLogout = async () => {
-    await dispatch(logoutUser());
-    navigate('/login');
-  };
 
   const goToModeRoute = (mode) => {
     if (mode === 'seller') {
@@ -76,14 +71,9 @@ const Navbar = () => {
           {cartCount > 0 && <span>{cartCount}</span>}
         </NavLink>
         {isAuthenticated ? (
-          <>
-            <NavLink to="/profile" aria-label="Account">
-              <FiUser />
-            </NavLink>
-            <button onClick={handleLogout} aria-label="Logout" title="Logout">
-              <FiLogOut />
-            </button>
-          </>
+          <NavLink to="/profile" aria-label="Account">
+            <FiUser />
+          </NavLink>
         ) : (
           <NavLink to="/login" aria-label="Login">
             <FiUser />

@@ -48,6 +48,7 @@ import ForgotPassword from './pages/auth/ForgotPassword.jsx';
 import ResetPassword from './pages/auth/ResetPassword.jsx';
 import VerifyEmail from './pages/auth/VerifyEmail.jsx';
 import { fetchProfile } from './redux/slices/authSlice';
+import SmartChatBot from './components/chatbot/SmartChatBot.jsx';
 import styles from './App.module.css';
 import './App.css';
 
@@ -141,6 +142,7 @@ function App() {
         </Route>
       </Routes>
       <ToastContainer position="bottom-right" theme={theme === 'light' ? 'light' : 'dark'} />
+      <SmartChatBot />
     </div>
   );
 }

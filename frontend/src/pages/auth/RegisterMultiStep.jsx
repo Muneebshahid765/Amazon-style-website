@@ -12,6 +12,7 @@ import {
   clearRegistrationData,
   completeRegistration,
 } from '../../redux/slices/registrationSlice';
+import { setUser, setActiveMode } from '../../redux/slices/authSlice';
 import AccountTypeSelection from '../../components/auth/register/AccountTypeSelection';
 import PersonalInformation from '../../components/auth/register/PersonalInformation';
 import AddressInformation from '../../components/auth/register/AddressInformation';
@@ -49,7 +50,16 @@ const RegisterMultiStep = () => {
 
   const handleAccountTypeSelect = async (accountType) => {
     try {
-      await dispatch(submitStep1({ accountType })).unwrap();
+      const payload = { accountType };
+      if (allowSellerUpgrade) {
+        if (!user?._id) {
+          console.error('User information required for seller upgrade.');
+          return;
+        }
+        payload.isUpgrade = true;
+        payload.existingUserId = user._id;
+      }
+      await dispatch(submitStep1(payload)).unwrap();
     } catch (error) {
       console.error('Step 1 failed:', error);
     }
@@ -158,12 +168,16 @@ const RegisterMultiStep = () => {
   };
 
   const handleRegistrationComplete = (result) => {
-    const accountType = registrationData.accountType;
-    if (accountType === 'seller') {
-      navigate('/seller');
-    } else {
-      navigate('/');
+    const returnedUser = result?.user;
+    if (returnedUser) {
+      dispatch(setUser(returnedUser));
+      if (returnedUser.role === 'seller' || returnedUser.accountType === 'seller') {
+        dispatch(setActiveMode('seller'));
+      }
     }
+    const destination =
+      (returnedUser?.accountType || registrationData.accountType) === 'seller' ? '/seller' : '/';
+    navigate(destination);
   };
 
   const handlePrevious = () => {
@@ -219,6 +233,7 @@ const RegisterMultiStep = () => {
               onPrevious={handlePrevious}
               initialData={registrationData.businessInfo}
               addressData={registrationData.address}
+              allowSellerUpgrade={allowSellerUpgrade}
             />
           );
         }

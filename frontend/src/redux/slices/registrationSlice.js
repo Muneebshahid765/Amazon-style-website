@@ -185,6 +185,8 @@ const initialState = {
     businessInfo: {},
     logo: null,
     documents: [],
+    isUpgrade: false,
+    existingUserId: null,
   },
   registrationId: null,
   verificationSent: false,
@@ -270,8 +272,28 @@ const registrationSlice = createSlice({
       })
       .addCase(submitStep1.fulfilled, (state, action) => {
         state.loading = false;
-        state.registrationId = action.payload.registrationId;
-        state.registrationData.accountType = action.payload.accountType;
+        const {
+          registrationId,
+          accountType,
+          isUpgrade,
+          existingUserId,
+          prefilledPersonalInfo,
+          prefilledAddress,
+          prefilledBusinessInfo,
+        } = action.payload;
+        state.registrationId = registrationId;
+        state.registrationData.accountType = accountType;
+        state.registrationData.isUpgrade = Boolean(isUpgrade);
+        state.registrationData.existingUserId = existingUserId || null;
+        if (prefilledPersonalInfo) {
+          state.registrationData.personalInfo = prefilledPersonalInfo;
+        }
+        if (prefilledAddress) {
+          state.registrationData.address = prefilledAddress;
+        }
+        if (prefilledBusinessInfo) {
+          state.registrationData.businessInfo = prefilledBusinessInfo;
+        }
         state.registrationStep = 2;
       })
       .addCase(submitStep1.rejected, (state, action) => {

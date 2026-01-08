@@ -273,14 +273,72 @@ const getProfile = async (req, res) => {
 
 const registerStep1 = async (req, res, next) => {
   try {
-    const { accountType } = req.body;
+    const { accountType, isUpgrade = false, existingUserId } = req.body;
 
     if (!accountType || !['customer', 'seller'].includes(accountType)) {
       return res.status(400).json({ message: 'Invalid account type. Must be customer or seller.' });
     }
 
+    if (isUpgrade && accountType !== 'seller') {
+      return res.status(400).json({ message: 'Upgrade mode is only available for seller accounts.' });
+    }
+
     const registrationId = crypto.randomBytes(16).toString('hex');
     const registrationData = { accountType, step: 1 };
+
+    let prefilledPersonalInfo = null;
+    let prefilledAddress = null;
+    let prefilledBusinessInfo = null;
+
+    if (isUpgrade) {
+      if (!existingUserId) {
+        return res.status(400).json({ message: 'Existing user ID is required for upgrade flow.' });
+      }
+
+      const existingUser = await User.findById(existingUserId);
+      if (!existingUser) {
+        return res.status(404).json({ message: 'Existing user not found.' });
+      }
+
+      if (!existingUser.isVerified || !existingUser.isEmailVerified) {
+        return res
+          .status(400)
+          .json({ message: 'Please verify your email on the buyer account before upgrading to seller.' });
+      }
+
+      registrationData.isUpgrade = true;
+      registrationData.existingUserId = existingUser._id.toString();
+      prefilledPersonalInfo = {
+        firstName: existingUser.firstName,
+        lastName: existingUser.lastName,
+        email: existingUser.email,
+        phone: existingUser.phone,
+      };
+      registrationData.personalInfo = { ...prefilledPersonalInfo };
+
+      if (existingUser.addresses && existingUser.addresses.length > 0) {
+        const primaryAddress = existingUser.addresses[0];
+        prefilledAddress = {
+          street: primaryAddress.street || '',
+          city: primaryAddress.city || '',
+          state: primaryAddress.state || '',
+          country: primaryAddress.country || '',
+          zipCode: primaryAddress.zipCode || '',
+          addressType: primaryAddress.addressType || 'home',
+          isDefault: typeof primaryAddress.isDefault === 'boolean' ? primaryAddress.isDefault : true,
+          phoneNumber: primaryAddress.phoneNumber || existingUser.phone || '',
+        };
+        registrationData.address = { ...prefilledAddress };
+      } else {
+        registrationData.address = {};
+      }
+
+      if (existingUser.businessInfo) {
+        prefilledBusinessInfo = existingUser.businessInfo.toObject ? existingUser.businessInfo.toObject() : existingUser.businessInfo;
+        registrationData.businessInfo = { ...prefilledBusinessInfo };
+      }
+      registrationData.isEmailVerified = true;
+    }
 
     await setCache(`registration:${registrationId}`, registrationData, 3600);
 
@@ -289,6 +347,11 @@ const registerStep1 = async (req, res, next) => {
       message: 'Account type selected successfully',
       registrationId,
       accountType,
+      isUpgrade,
+      existingUserId: registrationData.existingUserId || null,
+      prefilledPersonalInfo,
+      prefilledAddress,
+      prefilledBusinessInfo,
     });
   } catch (error) {
     next(error);
@@ -301,6 +364,20 @@ const registerStep2 = async (req, res, next) => {
 
     if (!registrationId) {
       return res.status(400).json({ message: 'Registration ID is required' });
+    }
+
+    const registrationData = await getCache(`registration:${registrationId}`);
+    if (!registrationData) {
+      return res.status(400).json({ message: 'Invalid or expired registration session' });
+    }
+
+    if (registrationData.isUpgrade) {
+      // Personal info already sourced from existing buyer account.
+      return res.status(200).json({
+        success: true,
+        message: 'Personal information already verified for upgrade flow',
+        registrationId,
+      });
     }
 
     if (!firstName || !lastName || !email || !phone || !password || !confirmPassword) {
@@ -320,11 +397,6 @@ const registerStep2 = async (req, res, next) => {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(409).json({ message: 'Email already registered' });
-    }
-
-    const registrationData = await getCache(`registration:${registrationId}`);
-    if (!registrationData) {
-      return res.status(400).json({ message: 'Invalid or expired registration session' });
     }
 
     registrationData.personalInfo = { firstName, lastName, email, phone, password };
@@ -350,13 +422,13 @@ const registerStep3 = async (req, res, next) => {
       return res.status(400).json({ message: 'Registration ID is required' });
     }
 
-    if (!street || !city || !state || !country || !zipCode) {
-      return res.status(400).json({ message: 'All address fields are required' });
-    }
-
     const registrationData = await getCache(`registration:${registrationId}`);
     if (!registrationData) {
       return res.status(400).json({ message: 'Invalid or expired registration session' });
+    }
+
+    if (!street || !city || !state || !country || !zipCode) {
+      return res.status(400).json({ message: 'All address fields are required' });
     }
 
     registrationData.address = {
@@ -414,6 +486,8 @@ const registerStep4 = async (req, res, next) => {
       return res.status(400).json({ message: 'Business information only required for seller accounts' });
     }
 
+    const isUpgrade = Boolean(registrationData.isUpgrade);
+
     if (!businessName || !businessType || !registrationNumber || !taxId || !businessCategory || !description) {
       return res.status(400).json({ message: 'All business fields are required' });
     }
@@ -422,19 +496,21 @@ const registerStep4 = async (req, res, next) => {
       return res.status(400).json({ message: 'Description must be between 50 and 500 characters' });
     }
 
-    const existingStore = await Store.findOne({ storeName: businessName });
-    if (existingStore) {
-      return res.status(409).json({ message: 'Business name already taken' });
+    if (!isUpgrade) {
+      const existingStore = await Store.findOne({ storeName: businessName });
+      if (existingStore) {
+        return res.status(409).json({ message: 'Business name already taken' });
+      }
     }
 
     let businessAddress;
     if (sameAsPersonalAddress) {
       businessAddress = {
-        street: registrationData.address.street,
-        city: registrationData.address.city,
-        state: registrationData.address.state,
-        country: registrationData.address.country,
-        zipCode: registrationData.address.zipCode,
+        street: registrationData.address?.street,
+        city: registrationData.address?.city,
+        state: registrationData.address?.state,
+        country: registrationData.address?.country,
+        zipCode: registrationData.address?.zipCode,
       };
     } else {
       if (!businessStreet || !businessCity || !businessState || !businessCountry || !businessZipCode) {
@@ -457,6 +533,7 @@ const registerStep4 = async (req, res, next) => {
       businessAddress,
       businessCategory,
       description,
+      ...registrationData.businessInfo,
     };
     registrationData.step = 4;
 
@@ -480,13 +557,20 @@ const uploadBusinessLogo = async (req, res, next) => {
       return res.status(400).json({ message: 'Registration ID is required' });
     }
 
-    if (!req.file) {
-      return res.status(400).json({ message: 'Logo file is required' });
-    }
-
     const registrationData = await getCache(`registration:${registrationId}`);
     if (!registrationData) {
       return res.status(400).json({ message: 'Invalid or expired registration session' });
+    }
+
+    if (!req.file) {
+      if (registrationData.isUpgrade) {
+        return res.status(200).json({
+          success: true,
+          message: 'Logo upload skipped for upgrade flow',
+          logo: registrationData.businessInfo?.logo || null,
+        });
+      }
+      return res.status(400).json({ message: 'Logo file is required' });
     }
 
     const result = await cloudinary.uploader.upload(req.file.path, {
@@ -529,6 +613,17 @@ const uploadBusinessDocuments = async (req, res, next) => {
     }
 
     if (!req.files || req.files.length === 0) {
+      const registrationData = await getCache(`registration:${registrationId}`);
+      if (!registrationData) {
+        return res.status(400).json({ message: 'Invalid or expired registration session' });
+      }
+      if (registrationData.isUpgrade) {
+        return res.status(200).json({
+          success: true,
+          message: 'Document upload skipped for upgrade flow',
+          documents: registrationData.businessInfo?.documents || [],
+        });
+      }
       return res.status(400).json({ message: 'At least one document is required' });
     }
 
@@ -740,11 +835,79 @@ const completeRegistration = async (req, res, next) => {
       return res.status(400).json({ message: 'Invalid or expired registration session' });
     }
 
+    const { personalInfo, address, businessInfo, accountType, isUpgrade, existingUserId } = registrationData;
+
     if (!registrationData.isEmailVerified) {
       return res.status(400).json({ message: 'Email verification required' });
     }
 
-    const { personalInfo, address, businessInfo, accountType } = registrationData;
+    if (isUpgrade) {
+      if (!existingUserId) {
+        return res.status(400).json({ message: 'Existing user not found for upgrade flow' });
+      }
+
+      const user = await User.findById(existingUserId);
+      if (!user) {
+        return res.status(404).json({ message: 'Existing user not found' });
+      }
+
+      user.accountType = 'seller';
+      user.role = 'seller';
+      user.isEmailVerified = true;
+      user.isVerified = true;
+      user.accountStatus = 'pending_verification';
+
+      if (address && Object.keys(address).length > 0) {
+        if (!user.addresses || user.addresses.length === 0) {
+          user.addresses = [address];
+        } else {
+          user.addresses[0] = { ...user.addresses[0]._doc, ...address };
+        }
+      }
+
+      if (businessInfo) {
+        user.businessInfo = businessInfo;
+      }
+
+      await user.save();
+
+      let store = await Store.findOne({ seller: user._id });
+      if (!store) {
+        store = await Store.create({
+          seller: user._id,
+          storeName: businessInfo.businessName,
+          description: businessInfo.description,
+          logo: businessInfo.logo,
+        });
+      } else {
+        store.storeName = businessInfo.businessName;
+        store.description = businessInfo.description;
+        store.logo = businessInfo.logo;
+        await store.save();
+      }
+
+      await sendEmail({
+        to: user.email,
+        subject: 'Welcome to NovaMart - Seller Account Pending Verification',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2>Welcome to NovaMart, ${user.firstName}!</h2>
+            <p>Your seller account upgrade request has been received.</p>
+            <p>Your business information is currently under review by our team. We'll notify you once your seller tools are activated.</p>
+            <p>This process typically takes 1-2 business days.</p>
+            <p>Thank you for choosing NovaMart!</p>
+          </div>
+        `,
+      });
+
+      await deleteCache(`registration:${registrationId}`);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Seller upgrade completed successfully',
+        user: sanitizeUser(user),
+      });
+    }
 
     const userData = {
       firstName: personalInfo.firstName,
@@ -764,19 +927,11 @@ const completeRegistration = async (req, res, next) => {
       userData.accountStatus = 'pending_verification';
     }
 
-    if (accountType === 'seller') {
-      userData.buyerProfile = {
-        displayName: `${personalInfo.firstName} ${personalInfo.lastName}`.trim(),
-        createdAt: new Date(),
-      };
-      userData.hasBuyerProfile = true;
-    } else {
-      userData.hasBuyerProfile = true;
-      userData.buyerProfile = {
-        displayName: `${personalInfo.firstName} ${personalInfo.lastName}`.trim(),
-        createdAt: new Date(),
-      };
-    }
+    userData.hasBuyerProfile = true;
+    userData.buyerProfile = {
+      displayName: `${personalInfo.firstName} ${personalInfo.lastName}`.trim(),
+      createdAt: new Date(),
+    };
 
     const user = await User.create(userData);
 

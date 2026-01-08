@@ -183,6 +183,25 @@
   cursor: not-allowed;
 }
 
+.logoutButton {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.logoutButton:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fecaca;
+}
+
 .actionLink {
   margin-top: 0.75rem;
   width: 100%;

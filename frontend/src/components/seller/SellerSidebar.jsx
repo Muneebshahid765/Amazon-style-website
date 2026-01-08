@@ -16,7 +16,7 @@ import {
   FiShield,
 } from 'react-icons/fi';
 import styles from './SellerSidebar.module.css';
-import { setActiveMode } from '../../redux/slices/authSlice';
+import { setActiveMode, logoutUser } from '../../redux/slices/authSlice';
 
 const SellerSidebar = ({ isOpen, onToggle }) => {
   const dispatch = useDispatch();
@@ -34,6 +34,17 @@ const SellerSidebar = ({ isOpen, onToggle }) => {
     dispatch(setActiveMode('buyer'));
     navigate('/dashboard');
   };
+
+  const handleLogout = async () => {
+    await dispatch(logoutUser());
+    navigate('/login');
+  };
+
+  const logoutButton = (
+    <button type="button" className={styles.logoutButton} onClick={handleLogout}>
+      Logout
+    </button>
+  );
 
   const navItems = [
     { path: '/seller', icon: FiHome, label: 'Dashboard', exact: true },
@@ -157,8 +168,10 @@ const SellerSidebar = ({ isOpen, onToggle }) => {
               Go to Settings
             </button>
           )}
+          {logoutButton}
         </div>
       )}
+      {!isSeller && <div className={styles.sidebarActions}>{logoutButton}</div>}
     </aside>
   );
 };

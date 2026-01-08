@@ -24,7 +24,7 @@ const businessCategories = [
   'Other',
 ];
 
-const BusinessInformation = ({ onNext, onPrevious, initialData, addressData }) => {
+const BusinessInformation = ({ onNext, onPrevious, initialData, addressData, allowSellerUpgrade = false }) => {
   const dispatch = useDispatch();
   const { businessNameAvailable, uploadingLogo, uploadingDocuments, registrationId } = useSelector(
     (state) => state.registration
@@ -175,11 +175,11 @@ const BusinessInformation = ({ onNext, onPrevious, initialData, addressData }) =
       if (businessNameAvailable === false) {
         return;
       }
-      if (logoUpload.files.length === 0) {
+      if (!allowSellerUpgrade && logoUpload.files.length === 0) {
         alert('Please upload a business logo');
         return;
       }
-      if (documentsUpload.files.length === 0) {
+      if (!allowSellerUpgrade && documentsUpload.files.length === 0) {
         alert('Please upload at least one business document');
         return;
       }
@@ -445,6 +445,11 @@ const BusinessInformation = ({ onNext, onPrevious, initialData, addressData }) =
 
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>Business Logo <span className={styles.required}>*</span></h3>
+          {allowSellerUpgrade && (
+            <p className={styles.sectionHint}>
+              Optional for upgrades — we&apos;ll reuse your existing brand logo unless you upload a new one.
+            </p>
+          )}
           <div
             className={`${styles.uploadArea} ${logoUpload.isDragging ? styles.dragging : ''}`}
             onDragOver={logoUpload.handleDragOver}
