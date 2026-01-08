@@ -213,59 +213,61 @@ const PersonalInformation = ({
           </div>
         </div>
 
-        <div className={styles.formGroup}>
-          <label htmlFor="email" className={styles.label}>
-            Email Address <span className={styles.required}>*</span>
-          </label>
-          <div className={styles.inputWrapper}>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={values.email}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className={`${styles.input} ${touched.email && errors.email ? styles.inputError : ''}`}
-              placeholder="Enter your email address"
-              readOnly={isLocked('email')}
-              disabled={isLocked('email')}
-            />
-            {values.email && validateEmail(values.email) && emailAvailable !== null && (
-              <span className={styles.availabilityIcon}>
-                {emailAvailable ? (
-                  <FiCheck className={styles.checkIcon} />
-                ) : (
-                  <FiX className={styles.errorIcon} />
-                )}
-              </span>
+        <div className={styles.row}>
+          <div className={styles.formGroup}>
+            <label htmlFor="email" className={styles.label}>
+              Email Address <span className={styles.required}>*</span>
+            </label>
+            <div className={styles.inputWrapper}>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={values.email}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`${styles.input} ${touched.email && errors.email ? styles.inputError : ''}`}
+                placeholder="Enter your email address"
+                readOnly={isLocked('email')}
+                disabled={isLocked('email')}
+              />
+              {values.email && validateEmail(values.email) && emailAvailable !== null && (
+                <span className={styles.availabilityIcon}>
+                  {emailAvailable ? (
+                    <FiCheck className={styles.checkIcon} />
+                  ) : (
+                    <FiX className={styles.errorIcon} />
+                  )}
+                </span>
+              )}
+            </div>
+            {touched.email && errors.email && (
+              <span className={styles.errorMessage}>{errors.email}</span>
+            )}
+            {emailAvailable === false && (
+              <span className={styles.errorMessage}>This email is already registered</span>
             )}
           </div>
-          {touched.email && errors.email && (
-            <span className={styles.errorMessage}>{errors.email}</span>
-          )}
-          {emailAvailable === false && (
-            <span className={styles.errorMessage}>This email is already registered</span>
-          )}
-        </div>
 
-        <div className={styles.formGroup}>
-          <label htmlFor="phone" className={styles.label}>
-            Phone Number <span className={styles.required}>*</span>
-          </label>
-          <input
-            type="tel"
-            id="phone"
-            name="phone"
-            value={values.phone}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            className={`${styles.input} ${touched.phone && errors.phone ? styles.inputError : ''}`}
-            placeholder="Enter your phone number"
-            readOnly={isLocked('phone')}
-          />
-          {touched.phone && errors.phone && (
-            <span className={styles.errorMessage}>{errors.phone}</span>
-          )}
+          <div className={styles.formGroup}>
+            <label htmlFor="phone" className={styles.label}>
+              Phone Number <span className={styles.required}>*</span>
+            </label>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              value={values.phone}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              className={`${styles.input} ${touched.phone && errors.phone ? styles.inputError : ''}`}
+              placeholder="Enter your phone number"
+              readOnly={isLocked('phone')}
+            />
+            {touched.phone && errors.phone && (
+              <span className={styles.errorMessage}>{errors.phone}</span>
+            )}
+          </div>
         </div>
 
         {!hidePasswordFields && (
@@ -274,7 +276,7 @@ const PersonalInformation = ({
               <label htmlFor="password" className={styles.label}>
                 Password <span className={styles.required}>*</span>
               </label>
-              <div className={styles.inputWrapper}>
+              <div className={styles.passwordField}>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="password"
@@ -327,7 +329,7 @@ const PersonalInformation = ({
               <label htmlFor="confirmPassword" className={styles.label}>
                 Confirm Password <span className={styles.required}>*</span>
               </label>
-              <div className={styles.inputWrapper}>
+              <div className={styles.passwordField}>
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
                   id="confirmPassword"
