@@ -1,7 +1,8 @@
-import { FiMenu, FiBell, FiUser, FiLogOut } from 'react-icons/fi';
+import { FiMenu, FiLogOut } from 'react-icons/fi';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { logoutUser } from '../../redux/slices/authSlice';
+import NotificationBell from '../notifications/NotificationBell.jsx';
 import styles from './SellerHeader.module.css';
 
 const SellerHeader = ({ onMenuClick }) => {
@@ -26,10 +27,7 @@ const SellerHeader = ({ onMenuClick }) => {
       </div>
 
       <div className={styles.actions}>
-        <button className={styles.iconButton}>
-          <FiBell />
-          <span className={styles.notificationBadge}>5</span>
-        </button>
+        <NotificationBell variant="seller" />
         
         <div className={styles.userMenu}>
           <div className={styles.userInfo}>

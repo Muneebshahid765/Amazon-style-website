@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   FiMenu,
   FiSearch,
-  FiBell,
   FiChevronDown,
   FiChevronLeft,
   FiChevronRight,
@@ -14,6 +13,7 @@ import {
 } from 'react-icons/fi';
 import { logoutUser } from '../../../redux/slices/authSlice';
 import styles from './AdminHeader.module.css';
+import NotificationBell from '../../notifications/NotificationBell.jsx';
 
 const AdminHeader = ({ onMenuToggle, onCollapseToggle, collapsed }) => {
   const location = useLocation();
@@ -78,10 +78,7 @@ const AdminHeader = ({ onMenuToggle, onCollapseToggle, collapsed }) => {
       </div>
 
       <div className={styles.rightControls}>
-        <button type="button" className={styles.iconButton} aria-label="Notifications">
-          <FiBell />
-          <span className={styles.badge}>3</span>
-        </button>
+        <NotificationBell />
 
         <div className={styles.profile} ref={dropdownRef}>
           <button type="button" className={styles.profileButton} onClick={() => setDropdownOpen((prev) => !prev)}>

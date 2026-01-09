@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -48,13 +48,15 @@ import ForgotPassword from './pages/auth/ForgotPassword.jsx';
 import ResetPassword from './pages/auth/ResetPassword.jsx';
 import VerifyEmail from './pages/auth/VerifyEmail.jsx';
 import { fetchProfile } from './redux/slices/authSlice';
-import SmartChatBot from './components/chatbot/SmartChatBot.jsx';
+import SmartChatBot from './components/chatbot/SmartChatBotAPI.jsx';
 import styles from './App.module.css';
 import './App.css';
 
 function App() {
   const dispatch = useDispatch();
+  const location = useLocation();
   const theme = useSelector((state) => state.ui.theme);
+  const authUser = useSelector((state) => state.auth.user);
 
   useEffect(() => {
     document.body.dataset.theme = theme;
@@ -63,6 +65,8 @@ function App() {
   useEffect(() => {
     dispatch(fetchProfile());
   }, [dispatch]);
+
+  const showSellerChat = authUser?.role === 'seller' && location.pathname.startsWith('/seller');
 
   return (
     <div className={`${styles.appShell} ${theme === 'light' ? styles.lightMode : ''}`}>
@@ -142,7 +146,7 @@ function App() {
         </Route>
       </Routes>
       <ToastContainer position="bottom-right" theme={theme === 'light' ? 'light' : 'dark'} />
-      <SmartChatBot />
+      {showSellerChat && <SmartChatBot />}
     </div>
   );
 }

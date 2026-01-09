@@ -8,6 +8,8 @@ import checkoutReducer from './slices/checkoutSlice.js';
 import registrationReducer from './slices/registrationSlice.js';
 import adminReducer from './slices/adminSlice.js';
 import sellerReducer from './slices/sellerSlice.js';
+import chatBotReducer from './slices/chatBotSlice.js';
+import notificationReducer from './slices/notificationSlice.js';
 
 const store = configureStore({
   reducer: {
@@ -20,6 +22,8 @@ const store = configureStore({
     registration: registrationReducer,
     admin: adminReducer,
     seller: sellerReducer,
+    chatBot: chatBotReducer,
+    notifications: notificationReducer,
   },
 });
 

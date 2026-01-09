@@ -27,6 +27,7 @@ import reviewRoutes from './routes/reviewRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import sellerRoutes from './routes/sellerRoutes.js';
+import chatBotRoutes from './routes/chatBotRoutes.js';
 import { initializeSocket } from './config/socket.js';
 import { dropLegacyCartIndexes } from './models/Cart.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
@@ -105,6 +106,7 @@ app.use('/api', reviewRoutes);
 app.use('/api', searchRoutes);
 app.use('/api', notificationRoutes);
 app.use('/api/seller', sellerRoutes);
+app.use('/api/chatbot', chatBotRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

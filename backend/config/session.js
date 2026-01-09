@@ -14,6 +14,7 @@ const configureSession = () => {
   }
 
   const isProd = process.env.NODE_ENV === 'production';
+  const sessionTtlSeconds = Number(process.env.SESSION_TTL_SECONDS) || 24 * 60 * 60; // default 24h
 
   return session({
     secret: sessionSecret,
@@ -22,14 +23,15 @@ const configureSession = () => {
     store: MongoStore.create({
       mongoUrl: mongoUri,
       collectionName: 'sessions',
-      ttl: 7 * 24 * 60 * 60,
+      ttl: sessionTtlSeconds,
       autoRemove: 'native',
+      autoRemoveInterval: 10, // minutes
     }),
     cookie: {
       httpOnly: true,
       secure: isProd,
       sameSite: isProd ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: sessionTtlSeconds * 1000,
       domain: process.env.COOKIE_DOMAIN || undefined,
     },
     name: 'sessionId',
