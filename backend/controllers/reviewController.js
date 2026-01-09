@@ -1,6 +1,8 @@
 import Review from '../models/Review.js';
 import Product from '../models/Product.js';
 import Order from '../models/Order.js';
+import User from '../models/User.js';
+import { sendEmail } from '../utils/sendEmail.js';
 import { v2 as cloudinary } from 'cloudinary';
 import streamifier from 'streamifier';
 
@@ -73,6 +75,31 @@ const addReview = async (req, res, next) => {
       'user',
       'firstName lastName avatar'
     );
+
+    if (product.seller) {
+      try {
+        const seller = await User.findById(product.seller).select('email firstName lastName');
+        if (seller?.email) {
+          const productTitle = product.title || product.name || 'your product';
+          await sendEmail({
+            to: seller.email,
+            subject: `New review on ${productTitle}`,
+            html: `
+              <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#111827;">
+                <h2 style="color:#111827;">New review received</h2>
+                <p>Hi ${seller.firstName || 'Seller'},</p>
+                <p>Your product <strong>${productTitle}</strong> just received a ${rating}-star review.</p>
+                <p style="margin:16px 0;"><strong>${title || 'No title'}</strong></p>
+                <p style="margin:16px 0;">${comment}</p>
+                <p style="color:#6b7280;">Login to your dashboard to reply or view details.</p>
+              </div>
+            `,
+          });
+        }
+      } catch (emailError) {
+        console.warn('[Review] Failed to send seller review notification email', emailError);
+      }
+    }
 
     res.status(201).json({ message: 'Review added successfully', review: populatedReview });
   } catch (error) {

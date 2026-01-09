@@ -514,6 +514,12 @@ async function fetchUserContext(userId, userRole) {
 
 function analyzeQuery(query, systemData, currentUserType) {
   const lowerQuery = query.toLowerCase().trim();
+  const canonicalQuery = lowerQuery
+    .replace(/\bvaction\b/g, 'vacation')
+    .replace(/\bvaciton\b/g, 'vacation')
+    .replace(/\bvication\b/g, 'vacation')
+    .replace(/\bordr\b/g, 'order');
+  const matches = (pattern) => pattern.test(canonicalQuery);
   
   const analysis = {
     intent: null,
@@ -521,55 +527,55 @@ function analyzeQuery(query, systemData, currentUserType) {
     topic: null,
     needsData: false,
     dataPoints: [],
-    language: lowerQuery.match(/urdu|اردو/) ? 'urdu' : 
-               lowerQuery.match(/english/) ? 'english' : null
+    language: matches(/urdu|اردو/) ? 'urdu' : 
+               matches(/english/) ? 'english' : null
   };
 
-  if (lowerQuery.match(/switch|change\s+mode/)) {
+  if (matches(/switch|change\s+mode/)) {
     analysis.intent = 'switch_mode';
     return analysis;
   }
 
-  if (lowerQuery.match(/password|pass\s*word/)) {
+  if (matches(/password|pass\s*word/)) {
     analysis.intent = 'password_help';
     analysis.topic = 'password_management';
-    if (lowerQuery.match(/change|reset|update/)) {
+    if (matches(/change|reset|update/)) {
       analysis.entities.push('change_password');
-    } else if (lowerQuery.match(/forgot|bhool|yaad\s+nahi/)) {
+    } else if (matches(/forgot|bhool|yaad\s+nahi/)) {
       analysis.entities.push('forgot_password');
     }
     return analysis;
   }
 
-  if (lowerQuery.match(/profile|personal\s+info|my\s+info/)) {
+  if (matches(/profile|personal\s+info|my\s+info/)) {
     analysis.intent = 'profile_help';
     analysis.topic = 'profile_management';
-    if (lowerQuery.match(/update|change|edit/)) {
+    if (matches(/update|change|edit/)) {
       analysis.entities.push('update_profile');
     }
     return analysis;
   }
 
-  if (lowerQuery.match(/vacation|holiday|break|band\s+kar/)) {
+  if (matches(/vacation|holiday|break|band\s+kar/)) {
     analysis.intent = 'vacation_mode';
     analysis.topic = 'seller_settings';
     analysis.entities.push('vacation_mode');
     return analysis;
   }
 
-  if (lowerQuery.match(/setting|configuration|preferences/)) {
+  if (matches(/setting|configuration|preferences/)) {
     analysis.intent = 'settings_help';
     analysis.topic = 'settings';
-    if (lowerQuery.match(/vacation/)) {
+    if (matches(/vacation/)) {
       analysis.entities.push('vacation_mode');
     }
     return analysis;
   }
 
-  if (lowerQuery.match(/how\s+many|kitne|kitni|count|total/)) {
+  if (matches(/how\s+many|kitne|kitni|count|total/)) {
     analysis.needsData = true;
     
-    if (lowerQuery.match(/categor/)) {
+    if (matches(/categor/)) {
       analysis.intent = 'count_query';
       analysis.topic = 'categories';
       analysis.dataPoints.push({
@@ -577,7 +583,7 @@ function analyzeQuery(query, systemData, currentUserType) {
         value: systemData.seller?.categories || [],
         count: systemData.seller?.categoryCount || 0
       });
-    } else if (lowerQuery.match(/product|item/)) {
+    } else if (matches(/product|item/)) {
       analysis.intent = 'count_query';
       analysis.topic = 'products';
       analysis.dataPoints.push({
@@ -585,7 +591,7 @@ function analyzeQuery(query, systemData, currentUserType) {
         value: systemData.seller?.products || [],
         count: systemData.seller?.productCount || 0
       });
-    } else if (lowerQuery.match(/order/)) {
+    } else if (matches(/order/)) {
       analysis.intent = 'count_query';
       analysis.topic = 'orders';
       analysis.dataPoints.push({
@@ -597,7 +603,7 @@ function analyzeQuery(query, systemData, currentUserType) {
     return analysis;
   }
 
-  if (lowerQuery.match(/revenue|earning|income|kamaye|paise/)) {
+  if (matches(/revenue|earning|income|kamaye|paise/)) {
     analysis.intent = 'revenue_query';
     analysis.topic = 'earnings';
     analysis.needsData = true;
@@ -608,33 +614,33 @@ function analyzeQuery(query, systemData, currentUserType) {
     return analysis;
   }
 
-  if (lowerQuery.match(/order/)) {
+  if (matches(/order/)) {
     analysis.intent = 'order_query';
     analysis.topic = 'orders';
     analysis.needsData = true;
     return analysis;
   }
 
-  if (lowerQuery.match(/product/)) {
+  if (matches(/product/)) {
     analysis.intent = 'product_query';
     analysis.topic = 'products';
     analysis.needsData = true;
     return analysis;
   }
 
-  if (lowerQuery.match(/cart|basket/)) {
+  if (matches(/cart|basket/)) {
     analysis.intent = 'cart_query';
     analysis.topic = 'cart';
     analysis.needsData = true;
     return analysis;
   }
 
-  if (lowerQuery.match(/hello|hi|hey|salam|assalam/)) {
+  if (matches(/hello|hi|hey|salam|assalam/)) {
     analysis.intent = 'greeting';
     return analysis;
   }
 
-  if (lowerQuery.includes('?')) {
+  if (canonicalQuery.includes('?')) {
     analysis.intent = 'general_question';
   } else {
     analysis.intent = 'general_statement';

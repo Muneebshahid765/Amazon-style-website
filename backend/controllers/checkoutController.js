@@ -2,9 +2,96 @@ import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
 import Order from '../models/Order.js';
 import Coupon from '../models/Coupon.js';
+import User from '../models/User.js';
 import { stripeClient } from '../config/stripe.js';
 import { getItemProductId } from '../utils/cartHelpers.js';
 import { sendEmail } from '../utils/sendEmail.js';
+
+const getCurrencySymbol = (currency = 'USD') => {
+  if (currency === 'USD') return '$';
+  if (currency === 'PKR') return 'Rs. ';
+  return `${currency} `;
+};
+
+const formatCurrencyValue = (currency, value = 0) => {
+  return `${getCurrencySymbol(currency)}${Number(value || 0).toFixed(2)}`;
+};
+
+const buildSellerItemsHtml = (items, currency) =>
+  items
+    .map(
+      (item) => `
+      <tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">${item.title}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;">${item.quantity}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">${formatCurrencyValue(
+          currency,
+          item.price
+        )}</td>
+      </tr>`
+    )
+    .join('');
+
+const notifySellersAboutOrder = async (order, buyerName = 'Customer') => {
+  try {
+    const sellerIds = [
+      ...new Set(order.orderItems.map((item) => item.seller?.toString()).filter(Boolean)),
+    ];
+
+    if (!sellerIds.length) {
+      return;
+    }
+
+    const sellers = await User.find({ _id: { $in: sellerIds } }).select('email firstName');
+    const currency = order.currency || 'USD';
+
+    await Promise.all(
+      sellers.map(async (sellerDoc) => {
+        if (!sellerDoc?.email) return;
+
+        const sellerItems = order.orderItems.filter(
+          (item) => item.seller?.toString() === sellerDoc._id.toString()
+        );
+
+        if (!sellerItems.length) return;
+
+        const itemsHtml = buildSellerItemsHtml(sellerItems, currency);
+        const html = `
+          <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:640px;margin:0 auto;color:#111827;">
+            <h2 style="color:#111827;">New order received</h2>
+            <p>Hi ${sellerDoc.firstName || 'Seller'},</p>
+            <p>You have a new order <strong>${order.orderNumber}</strong> from <strong>${buyerName}</strong>.</p>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+              <thead>
+                <tr style="background:#111827;color:#fff;text-align:left;">
+                  <th style="padding:10px 12px;border-top-left-radius:6px;">Item</th>
+                  <th style="padding:10px 12px;text-align:center;">Qty</th>
+                  <th style="padding:10px 12px;border-top-right-radius:6px;text-align:right;">Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+            <p style="color:#6b7280;">Login to your seller dashboard to process this order.</p>
+          </div>
+        `;
+
+        try {
+          await sendEmail({
+            to: sellerDoc.email,
+            subject: `New order ${order.orderNumber} received`,
+            html,
+          });
+        } catch (sellerEmailError) {
+          console.warn('[Order] Failed to send seller notification email', sellerEmailError);
+        }
+      })
+    );
+  } catch (error) {
+    console.warn('[Order] Failed to notify sellers about new order', error);
+  }
+};
 
 const validateCart = async (req, res, next) => {
   try {
@@ -396,6 +483,8 @@ const createOrder = async (req, res, next) => {
     cart.subtotal = 0;
     await cart.save();
     console.log(`[Order] Cart cleared`);
+
+    await notifySellersAboutOrder(order, mappedAddress.fullName);
 
     const responsePayload = {
       message: 'Order created successfully',
