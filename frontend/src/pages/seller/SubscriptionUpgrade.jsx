@@ -3,17 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import { FiCheck, FiZap, FiTrendingUp, FiShield, FiArrowRight } from 'react-icons/fi';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import api from '../../services/api';
 import { fetchSubscriptionStatus } from '../../redux/slices/sellerSlice';
+import PlanCheckoutModal from '../../components/subscriptions/PlanCheckoutModal.jsx';
 import styles from './SubscriptionUpgrade.module.css';
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const SubscriptionUpgrade = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { subscriptionStatus } = useSelector((state) => state.seller);
+  const { user } = useSelector((state) => state.auth);
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState(null);
+  const [showCheckout, setShowCheckout] = useState(false);
 
   useEffect(() => {
     fetchPlans();
@@ -32,17 +40,57 @@ const SubscriptionUpgrade = () => {
     }
   };
 
-  const handleUpgrade = async (planId) => {
-    if (upgrading) return;
-    
+  const handleSelectPlan = (plan) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    if (subscriptionStatus?.plan?._id === plan._id) return;
+    setCheckoutPlan(plan);
+    setShowCheckout(true);
+  };
+
+  const handleConfirmPurchase = async ({ billingCycle, payment, notes, stripe, elements }) => {
+    if (!checkoutPlan || !stripe || !elements) return;
     setUpgrading(true);
     try {
-      await api.post('/subscriptions/assign', { userId: 'self', planId });
-      toast.success('Plan upgraded successfully!');
-      dispatch(fetchSubscriptionStatus());
-      navigate('/seller');
+      const { data: intentData } = await api.post('/subscriptions/payment-intent', {
+        planId: checkoutPlan._id,
+        billingCycle,
+      });
+
+      const cardElement = elements.getElement(CardElement);
+      const { error, paymentIntent } = await stripe.confirmCardPayment(
+        intentData.clientSecret,
+        {
+          payment_method: {
+            card: cardElement,
+            billing_details: {
+              name: payment.fullName,
+              email: payment.email,
+              address: {
+                country: payment.country,
+                line1: payment.address,
+              },
+            },
+          },
+        }
+      );
+
+      if (error) {
+        toast.error(error.message || 'Payment failed');
+        return;
+      }
+
+      if (paymentIntent.status === 'succeeded') {
+        toast.success('Subscription activated successfully!');
+        setCheckoutPlan(null);
+        setShowCheckout(false);
+        dispatch(fetchSubscriptionStatus());
+        fetchPlans();
+      }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to upgrade plan');
+      toast.error(error.response?.data?.message || 'Failed to process payment');
     } finally {
       setUpgrading(false);
     }
@@ -145,11 +193,11 @@ const SubscriptionUpgrade = () => {
 
               <button
                 className={`${styles.selectButton} ${isPopular ? styles.selectButtonPrimary : ''}`}
-                onClick={() => handleUpgrade(plan._id)}
+                onClick={() => handleSelectPlan(plan)}
                 disabled={isCurrent || upgrading}
                 style={isPopular && !isCurrent ? { backgroundColor: getTierColor(plan.tier) } : {}}
               >
-                {isCurrent ? 'Current Plan' : upgrading ? 'Processing...' : 'Upgrade Now'}
+                {isCurrent ? 'Current Plan' : 'Upgrade Now'}
                 {!isCurrent && <FiArrowRight />}
               </button>
 
@@ -192,6 +240,18 @@ const SubscriptionUpgrade = () => {
           );
         })}
       </div>
+      {showCheckout && (
+        <Elements stripe={stripePromise}>
+          <PlanCheckoutModal
+            isOpen={showCheckout}
+            plan={checkoutPlan}
+            onClose={() => setShowCheckout(false)}
+            onConfirm={handleConfirmPurchase}
+            loading={upgrading}
+            user={user}
+          />
+        </Elements>
+      )}
     </div>
   );
 };

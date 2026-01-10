@@ -1,6 +1,56 @@
 import SubscriptionPlan from '../models/SubscriptionPlan.js';
 import User from '../models/User.js';
+import SubscriptionTransaction from '../models/SubscriptionTransaction.js';
 import { assignPlanToUser, resetUsageCounters } from '../utils/subscriptionHelper.js';
+import { sendEmail } from '../utils/sendEmail.js';
+import { stripeClient } from '../config/stripe.js';
+
+const BILLING_CYCLES = ['monthly', 'yearly'];
+
+const calculatePlanCharge = (plan, billingCycle) => {
+  const monthlyPrice = Number(plan.priceMonthly || 0);
+  if (billingCycle === 'yearly') {
+    const yearly = monthlyPrice * 12 * 0.83; // 17% savings
+    return { amount: Number(yearly.toFixed(2)), durationDays: (plan.durationDays || 30) * 12 };
+  }
+  return { amount: Number(monthlyPrice.toFixed(2)), durationDays: plan.durationDays || 30 };
+};
+
+const activatePlanForUser = async ({ user, plan, billingCycle }) => {
+  const { amount, durationDays } = calculatePlanCharge(plan, billingCycle);
+  const now = new Date();
+  const renewDate = new Date(now);
+  renewDate.setDate(renewDate.getDate() + durationDays);
+
+  user.currentPlan = plan._id;
+  user.planStatus = 'active';
+  user.planAssignedAt = now;
+  user.planCycleStartedAt = now;
+  user.planRenewsAt = renewDate;
+  user.planUsage = { uploadsUsed: 0, editsUsed: 0, deletesUsed: 0 };
+  await user.save();
+
+  return { renewsAt: renewDate, totalDue: amount };
+};
+
+const sendPlanReceiptEmail = async ({ user, plan, billingCycle, totalDue, renewsAt }) => {
+  if (!user?.email) return;
+  await sendEmail({
+    to: user.email,
+    subject: `Your ${plan.name} plan is active`,
+    html: `
+      <h2>Thanks for upgrading!</h2>
+      <p>Hello ${user.firstName || user.email},</p>
+      <p>Your <strong>${plan.name}</strong> plan is now active.</p>
+      <ul>
+        <li>Billing cycle: <strong>${billingCycle}</strong></li>
+        <li>Total paid today: <strong>$${totalDue.toFixed(2)}</strong></li>
+        <li>Renews on: <strong>${renewsAt?.toLocaleDateString()}</strong></li>
+      </ul>
+      <p>You can cancel or change your plan anytime from your dashboard.</p>
+    `,
+  });
+};
 
 // ==================== SUBSCRIPTION PLANS CRUD ====================
 
@@ -80,6 +130,7 @@ export const createPlan = async (req, res, next) => {
     next(error);
   }
 };
+
 
 /**
  * Update subscription plan (Admin only)
@@ -173,6 +224,58 @@ export const togglePlanStatus = async (req, res, next) => {
 /**
  * Assign plan to user (Admin only)
  */
+export const createSubscriptionPaymentIntent = async (req, res, next) => {
+  try {
+    if (!stripeClient) {
+      return res.status(500).json({ message: 'Stripe is not configured on the server.' });
+    }
+
+    const { planId, billingCycle = 'monthly' } = req.body;
+
+    if (!planId) {
+      return res.status(400).json({ message: 'Plan ID is required' });
+    }
+
+    if (!BILLING_CYCLES.includes(billingCycle)) {
+      return res.status(400).json({ message: 'Invalid billing cycle selected' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const plan = await SubscriptionPlan.findById(planId);
+    if (!plan || !plan.isActive) {
+      return res.status(404).json({ message: 'Subscription plan not available' });
+    }
+
+    const { amount } = calculatePlanCharge(plan, billingCycle);
+
+    const paymentIntent = await stripeClient.paymentIntents.create({
+      amount: Math.round(amount * 100),
+      currency: 'pkr',
+      metadata: {
+        userId: user._id.toString(),
+        planId: plan._id.toString(),
+        billingCycle,
+        intentType: 'subscription',
+      },
+      receipt_email: user.email,
+      description: `${plan.name} subscription (${billingCycle})`,
+    });
+
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      amount,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 export const assignPlanToUserAdmin = async (req, res, next) => {
   try {
     const { userId, planId } = req.body;
@@ -340,6 +443,40 @@ export const getUsersWithSubscriptions = async (req, res, next) => {
 /**
  * Get subscription statistics (Admin only)
  */
+export const getSubscriptionTransactions = async (req, res, next) => {
+  try {
+    const { status, userId, limit = 50, page = 1 } = req.query;
+    
+    const query = {};
+    if (status) query.status = status;
+    if (userId) query.user = userId;
+
+    const skip = (page - 1) * limit;
+
+    const [transactions, total] = await Promise.all([
+      SubscriptionTransaction.find(query)
+        .populate('user', 'firstName lastName email')
+        .populate('plan', 'name tier priceMonthly')
+        .sort({ createdAt: -1 })
+        .limit(parseInt(limit))
+        .skip(skip),
+      SubscriptionTransaction.countDocuments(query),
+    ]);
+
+    res.json({
+      transactions,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / limit),
+        limit: parseInt(limit),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getSubscriptionStats = async (req, res, next) => {
   try {
     const [

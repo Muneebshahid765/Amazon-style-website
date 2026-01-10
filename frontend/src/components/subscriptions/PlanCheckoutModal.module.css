@@ -1,0 +1,306 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(9, 9, 11, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1500;
+  padding: 2rem 1.5rem;
+  overflow-y: auto;
+}
+
+.modal {
+  width: min(1100px, 100%);
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 24px;
+  box-shadow: 0 50px 140px rgba(15, 23, 42, 0.65);
+  overflow: hidden;
+  max-height: 96vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.75rem 2rem 1.25rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.header p {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #94a3b8;
+  margin-bottom: 0.4rem;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  color: #f8fafc;
+}
+
+.closeBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: transparent;
+  color: #e2e8f0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.closeBtn:hover {
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.billingToggle {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  padding: 1.25rem 2rem;
+  background: rgba(15, 23, 42, 0.8);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.billingToggle button {
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  background: transparent;
+  color: #e2e8f0;
+  text-align: left;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.billingToggle button span {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.activeToggle {
+  border-color: #7c3aed !important;
+  background: rgba(124, 58, 237, 0.15);
+  box-shadow: 0 15px 30px rgba(124, 58, 237, 0.25);
+}
+
+.content {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  gap: 2rem;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form h3,
+.summary h3 {
+  margin: 0 0 0.75rem;
+  color: #f8fafc;
+}
+
+.formRow,
+.cardRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+  color: #cbd5f5;
+}
+
+.formGroup input,
+.formGroup textarea {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 16px;
+  padding: 1rem 1.2rem;
+  background: rgba(15, 23, 42, 0.6);
+  color: #f8fafc;
+}
+
+.formGroup textarea {
+  min-height: 110px;
+  background: radial-gradient(circle at top left, rgba(99, 102, 241, 0.1), rgba(15, 23, 42, 0.7));
+  box-shadow: inset 0 12px 30px rgba(15, 23, 42, 0.35);
+  resize: none;
+}
+
+.notesBox {
+  width: 100%;
+  display: block;
+  min-height: 140px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(30, 27, 75, 0.85));
+  box-shadow: inset 0 18px 40px rgba(8, 8, 12, 0.65);
+  color: #f8fafc;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+.notesBox::placeholder {
+  color: rgba(226, 232, 240, 0.65);
+}
+
+.notesBox:focus {
+  border-color: rgba(99, 102, 241, 0.8);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25), inset 0 18px 40px rgba(8, 8, 12, 0.65);
+  outline: none;
+}
+
+.cardRow {
+  grid-template-columns: 2fr repeat(2, minmax(120px, 1fr));
+}
+
+.cardNumber label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #cbd5f5;
+}
+
+.cardInput {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.cardInput input {
+  border: none;
+  flex: 1;
+  background: transparent;
+  color: inherit;
+}
+
+.cardInput svg {
+  color: #94a3b8;
+}
+
+.stripeCard {
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 16px;
+  padding: 1rem 1.2rem;
+  background: rgba(15, 23, 42, 0.6);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.stripeCard:focus-within {
+  border-color: rgba(99, 102, 241, 0.8);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+}
+
+.submitBtn {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.submitBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.summaryCard,
+.infoCard {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.summaryRow,
+.summaryTotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.summaryTotal {
+  font-size: 1.1rem;
+  color: #f8fafc;
+}
+
+.renewalNote {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.infoCard {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.infoCard svg {
+  width: 32px;
+  height: 32px;
+  color: #38bdf8;
+}
+
+@media (max-width: 960px) {
+  .content {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .billingToggle {
+    grid-template-columns: 1fr;
+  }
+
+  .submitBtn {
+    width: 100%;
+    text-align: center;
+  }
+}

@@ -1,6 +1,10 @@
 import Stripe from 'stripe';
 import Order from '../models/Order.js';
 import Cart from '../models/Cart.js';
+import SubscriptionTransaction from '../models/SubscriptionTransaction.js';
+import SubscriptionPlan from '../models/SubscriptionPlan.js';
+import User from '../models/User.js';
+import { sendEmail } from '../utils/sendEmail.js';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 if (!stripeSecretKey) {
@@ -8,6 +12,7 @@ if (!stripeSecretKey) {
 }
 
 const stripe = new Stripe(stripeSecretKey);
+const SUBSCRIPTION_BILLING_CYCLES = ['monthly', 'yearly'];
 
 const createPaymentIntent = async (req, res, next) => {
   try {
@@ -102,6 +107,108 @@ const handleStripeWebhook = async (req, res) => {
       const paymentIntent = event.data.object;
       console.log(`[stripe] Payment succeeded: ${paymentIntent.id}`);
 
+      const metadata = paymentIntent.metadata || {};
+      const isSubscriptionIntent = metadata.intentType === 'subscription';
+
+      if (isSubscriptionIntent) {
+        const billingCycle = SUBSCRIPTION_BILLING_CYCLES.includes(metadata.billingCycle)
+          ? metadata.billingCycle
+          : 'monthly';
+
+        let transaction = await SubscriptionTransaction.findOne({
+          stripePaymentIntentId: paymentIntent.id,
+        });
+
+        if (!transaction) {
+          if (!metadata.userId || !metadata.planId) {
+            console.error(
+              `[stripe] Subscription intent missing userId/planId metadata for payment intent ${paymentIntent.id}`
+            );
+            return res.status(400).json({ error: 'Invalid subscription metadata' });
+          }
+
+          transaction = await SubscriptionTransaction.create({
+            user: metadata.userId,
+            plan: metadata.planId,
+            amount: Number(((paymentIntent.amount_received || paymentIntent.amount || 0) / 100).toFixed(2)),
+            currency: (paymentIntent.currency || 'pkr').toUpperCase(),
+            billingCycle,
+            paymentMethod: 'stripe',
+            status: 'processing',
+            stripePaymentIntentId: paymentIntent.id,
+            paymentDetails: {
+              receiptEmail: paymentIntent.receipt_email || metadata.email,
+            },
+          });
+        }
+
+        if (transaction.status === 'succeeded') {
+          console.log(`[stripe] Transaction ${transaction._id} already processed.`);
+          return res.json({ received: true, message: 'Already processed' });
+        }
+
+        const user = await User.findById(transaction.user);
+        const plan = await SubscriptionPlan.findById(transaction.plan);
+
+        if (!user || !plan) {
+          console.error(
+            `[stripe] Unable to activate subscription, user or plan missing for transaction ${transaction._id}`
+          );
+          return res.status(404).json({ error: 'Subscription target not found' });
+        }
+
+        let durationDays = plan.durationDays || 30;
+        if (transaction.billingCycle === 'yearly') {
+          durationDays *= 12;
+        }
+
+        const now = new Date();
+        const renewDate = new Date(now);
+        renewDate.setDate(renewDate.getDate() + durationDays);
+
+        user.currentPlan = plan._id;
+        user.planStatus = 'active';
+        user.planAssignedAt = now;
+        user.planCycleStartedAt = now;
+        user.planRenewsAt = renewDate;
+        user.planUsage = { uploadsUsed: 0, editsUsed: 0, deletesUsed: 0 };
+        await user.save();
+
+        transaction.status = 'succeeded';
+        transaction.amount =
+          transaction.amount ||
+          Number(((paymentIntent.amount_received || paymentIntent.amount || 0) / 100).toFixed(2));
+        transaction.stripeChargeId = paymentIntent.latest_charge;
+        if (paymentIntent.charges?.data?.[0]) {
+          const charge = paymentIntent.charges.data[0];
+          transaction.paymentDetails = {
+            cardLast4: charge.payment_method_details?.card?.last4,
+            cardBrand: charge.payment_method_details?.card?.brand,
+            receiptEmail: charge.receipt_email || user.email,
+          };
+        }
+        await transaction.save();
+
+        await sendEmail({
+          to: user.email,
+          subject: `Your ${plan.name} plan is active`,
+          html: `
+            <h2>Thanks for upgrading!</h2>
+            <p>Hello ${user.firstName || user.email},</p>
+            <p>Your <strong>${plan.name}</strong> plan is now active.</p>
+            <ul>
+              <li>Billing cycle: <strong>${transaction.billingCycle}</strong></li>
+              <li>Total paid today: <strong>PKR ${transaction.amount.toFixed(2)}</strong></li>
+              <li>Renews on: <strong>${renewDate.toLocaleDateString()}</strong></li>
+            </ul>
+            <p>You can cancel or change your plan anytime from your dashboard.</p>
+          `,
+        });
+
+        console.log(`[stripe] Subscription activated for user ${user._id}`);
+        return res.json({ received: true });
+      }
+
       const order = await Order.findOne({ paymentIntentId: paymentIntent.id });
 
       if (!order) {
@@ -133,6 +240,18 @@ const handleStripeWebhook = async (req, res) => {
     if (event.type === 'payment_intent.payment_failed') {
       const paymentIntent = event.data.object;
       console.log(`[stripe] Payment failed: ${paymentIntent.id}`);
+
+      const transaction = await SubscriptionTransaction.findOne({ 
+        stripePaymentIntentId: paymentIntent.id 
+      });
+
+      if (transaction) {
+        transaction.status = 'failed';
+        transaction.failureReason = paymentIntent.last_payment_error?.message || 'Payment failed';
+        await transaction.save();
+        console.log(`[stripe] Subscription transaction ${transaction._id} marked as failed.`);
+        return res.json({ received: true });
+      }
 
       const order = await Order.findOne({ paymentIntentId: paymentIntent.id });
 
