@@ -50,6 +50,7 @@ const Navbar = () => {
 
       <nav className={styles.links}>
         <NavLink to="/products">Shop</NavLink>
+        <NavLink to="/pricing">Pricing</NavLink>
         {isAuthenticated && <NavLink to="/profile">Profile</NavLink>}
         {isAuthenticated && isAdmin && <NavLink to="/admin">Admin</NavLink>}
       </nav>

@@ -14,6 +14,7 @@ import Cart from './pages/Cart.jsx';
 import Checkout from './pages/Checkout.jsx';
 import OrderSuccess from './pages/OrderSuccess.jsx';
 import Profile from './pages/Profile.jsx';
+import Pricing from './pages/Pricing.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import AdminSellerList from './pages/admin/sellers/SellerList.jsx';
 import AdminSellerDetail from './pages/admin/sellers/SellerDetail.jsx';
@@ -41,6 +42,7 @@ import SellerCoupons from './pages/seller/marketing/Coupons.jsx';
 import SellerStoreSettings from './pages/seller/store/StoreSettings.jsx';
 import SellerReviews from './pages/seller/reviews/Reviews.jsx';
 import SellerAnalytics from './pages/seller/analytics/Analytics.jsx';
+import SellerSubscriptionUpgrade from './pages/seller/SubscriptionUpgrade.jsx';
 import UserDashboard from './pages/UserDashboard.jsx';
 import Wishlist from './pages/Wishlist.jsx';
 import Login from './pages/auth/Login.jsx';
@@ -81,6 +83,7 @@ function App() {
         <Route path="/" element={<Layout><Home /></Layout>} />
         <Route path="/products" element={<Layout><ProductList /></Layout>} />
         <Route path="/products/:slug" element={<Layout><ProductDetail /></Layout>} />
+        <Route path="/pricing" element={<Layout><Pricing /></Layout>} />
         <Route path="/cart" element={<Layout><Cart /></Layout>} />
         <Route path="/checkout" element={<Layout><Checkout /></Layout>} />
         <Route path="/order-success/:orderId" element={<Layout><OrderSuccess /></Layout>} />
@@ -145,6 +148,7 @@ function App() {
           <Route path="marketing/coupons" element={<SellerCoupons />} />
           <Route path="store" element={<SellerStoreSettings />} />
           <Route path="settings" element={<SellerStoreSettings />} />
+          <Route path="subscription/upgrade" element={<SellerSubscriptionUpgrade />} />
         </Route>
       </Routes>
       <ToastContainer position="bottom-right" theme={theme === 'light' ? 'light' : 'dark'} />

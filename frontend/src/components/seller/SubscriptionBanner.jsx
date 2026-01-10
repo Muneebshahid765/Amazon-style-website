@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { fetchSubscriptionStatus } from '../../redux/slices/sellerSlice';
-import { FiPackage, FiUpload, FiEdit2, FiTrash2, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
+import { FiPackage, FiUpload, FiEdit2, FiTrash2, FiAlertCircle, FiCheckCircle, FiArrowRight } from 'react-icons/fi';
 import styles from './SubscriptionBanner.module.css';
 
 const SubscriptionBanner = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { subscriptionStatus, subscriptionLoading } = useSelector((state) => state.seller);
 
   useEffect(() => {
@@ -166,18 +168,27 @@ const SubscriptionBanner = () => {
         </div>
       </div>
 
-      {plan.renewsAt && (
-        <div className={styles.renewalInfo}>
-          <FiCheckCircle />
-          <span>
-            Renews on: {new Date(plan.renewsAt).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
-          </span>
-        </div>
-      )}
+      <div className={styles.bannerActions}>
+        <button 
+          className={styles.upgradeButton}
+          onClick={() => navigate('/seller/subscription/upgrade')}
+        >
+          Upgrade Plan <FiArrowRight />
+        </button>
+        
+        {plan.renewsAt && (
+          <div className={styles.renewalInfo}>
+            <FiCheckCircle />
+            <span>
+              Renews on: {new Date(plan.renewsAt).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

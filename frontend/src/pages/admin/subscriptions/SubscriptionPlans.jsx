@@ -342,20 +342,31 @@ const SubscriptionPlans = () => {
         <>
           <section className={styles.section}>
             <div className={styles.sectionHeading}>
-              <h2>Plan Library</h2>
+              <div>
+                <h2>Plan Library</h2>
+                <p>Manage plan tiers, pricing and quotas</p>
+              </div>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => handleOpenModal()}
+              >
+                <FiPlus /> Create Plan
+              </button>
             </div>
 
             {subscriptionPlans.length === 0 ? (
               <div className={styles.emptyStateCard}>
                 <div>
                   <h3>No subscription plans yet</h3>
-                  <p>
-                    Create your first plan to start enforcing limits for sellers. Each plan can have
-                    its own quotas, pricing, and feature set.
-                  </p>
+                  <p>Create your first plan to start enforcing limits for sellers.</p>
                 </div>
-                <button type="button" onClick={() => handleOpenModal()} className={styles.primaryBtn}>
-                  <FiPlus /> Create First Plan
+                <button
+                  type="button"
+                  className={styles.primaryBtn}
+                  onClick={() => handleOpenModal()}
+                >
+                  <FiPlus /> Create Plan
                 </button>
               </div>
             ) : (
@@ -626,7 +637,8 @@ const SubscriptionPlans = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.formWrapper}>
+              <form onSubmit={handleSubmit} className={styles.form}>
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
                   <label>Plan Name *</label>
@@ -754,7 +766,7 @@ const SubscriptionPlans = () => {
                     }}
                   />
                   <button type="button" onClick={handleAddFeature}>
-                    <FiPlus />
+                    <FiPlus /> Add
                   </button>
                 </div>
                 <ul className={styles.featureList}>
@@ -789,7 +801,8 @@ const SubscriptionPlans = () => {
                   {editingPlan ? 'Update Plan' : 'Create Plan'}
                 </button>
               </div>
-            </form>
+              </form>
+            </div>
           </div>
         </div>
       )}
