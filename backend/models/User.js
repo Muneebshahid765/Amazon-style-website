@@ -60,6 +60,15 @@ const businessInfoSchema = new Schema(
   { _id: false, timestamps: false }
 );
 
+const planUsageSchema = new Schema(
+  {
+    uploadsUsed: { type: Number, default: 0, min: 0 },
+    editsUsed: { type: Number, default: 0, min: 0 },
+    deletesUsed: { type: Number, default: 0, min: 0 },
+  },
+  { _id: false }
+);
+
 const userSchema = new Schema(
   {
     firstName: { type: String, required: true, trim: true },
@@ -73,6 +82,17 @@ const userSchema = new Schema(
     },
     accountType: { type: String, enum: ['customer', 'seller', 'admin'], default: 'customer' },
     role: { type: String, enum: ['user', 'admin', 'seller'], default: 'user' },
+    currentPlan: { type: Schema.Types.ObjectId, ref: 'SubscriptionPlan' },
+    planStatus: {
+      type: String,
+      enum: ['inactive', 'trial', 'active', 'grace', 'expired', 'cancelled'],
+      default: 'inactive',
+    },
+    planAssignedAt: { type: Date },
+    planCycleStartedAt: { type: Date },
+    planRenewsAt: { type: Date },
+    planAutoRenew: { type: Boolean, default: true },
+    planUsage: { type: planUsageSchema, default: () => ({}) },
     businessInfo: businessInfoSchema,
     buyerProfile: {
       displayName: { type: String, trim: true },
@@ -108,6 +128,8 @@ userSchema.virtual('fullName').get(function getFullName() {
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ lastName: 1, firstName: 1 });
 userSchema.index({ role: 1 });
+userSchema.index({ currentPlan: 1 });
+userSchema.index({ planStatus: 1 });
 
 userSchema.pre('save', async function hashPassword(next) {
   if (!this.isModified('password')) return next();

@@ -489,6 +489,19 @@ export const deleteSellerCoupon = createAsyncThunk(
   }
 );
 
+// Subscription Status
+export const fetchSubscriptionStatus = createAsyncThunk(
+  'seller/fetchSubscriptionStatus',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/subscription/status');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch subscription status');
+    }
+  }
+);
+
 const initialState = {
   dashboardStats: null,
   salesOverview: null,
@@ -517,6 +530,8 @@ const initialState = {
   couponPagination: { total: 0, totalPages: 1, currentPage: 1 },
   couponsLoading: false,
   couponsError: null,
+  subscriptionStatus: null,
+  subscriptionLoading: false,
   loading: false,
   detailsLoading: false,
   orderDetailLoading: false,
@@ -730,6 +745,18 @@ const sellerSlice = createSlice({
       .addCase(deleteSellerCoupon.fulfilled, (state, action) => {
         state.coupons = state.coupons.filter((c) => c._id !== action.payload);
         state.couponPagination.total = Math.max(0, state.couponPagination.total - 1);
+      })
+      // Subscription Status
+      .addCase(fetchSubscriptionStatus.pending, (state) => {
+        state.subscriptionLoading = true;
+      })
+      .addCase(fetchSubscriptionStatus.fulfilled, (state, action) => {
+        state.subscriptionLoading = false;
+        state.subscriptionStatus = action.payload;
+      })
+      .addCase(fetchSubscriptionStatus.rejected, (state, action) => {
+        state.subscriptionLoading = false;
+        state.error = action.payload;
       });
   },
 });

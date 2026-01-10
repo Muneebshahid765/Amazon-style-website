@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchDashboardStats, fetchSalesOverview } from '../../redux/slices/sellerSlice';
 import { FiDollarSign, FiShoppingCart, FiPackage, FiStar, FiTrendingUp, FiTrendingDown, FiAlertCircle } from 'react-icons/fi';
 import ThreeRevenueChart from '../../components/dashboard/ThreeRevenueChart';
+import SubscriptionBanner from '../../components/seller/SubscriptionBanner';
 import styles from './SellerDashboard.module.css';
 
 const SellerDashboard = () => {
@@ -78,6 +79,8 @@ const SellerDashboard = () => {
           <FiPackage /> Add New Product
         </button>
       </div>
+
+      <SubscriptionBanner />
 
       {dashboardStats?.products?.lowStock > 0 && (
         <div className={styles.alert}>

@@ -15,6 +15,7 @@ import {
   FiAlertCircle,
   FiMail,
   FiFileText,
+  FiCreditCard,
 } from 'react-icons/fi';
 import styles from './AdminSidebar.module.css';
 
@@ -84,6 +85,7 @@ const AdminSidebar = ({ isOpen, onToggle }) => {
         { path: '/admin/finance/transactions', label: 'Transactions' },
       ],
     },
+    { path: '/admin/subscriptions', icon: FiCreditCard, label: 'Subscriptions' },
     { path: '/admin/reports', icon: FiFileText, label: 'Reports' },
     { path: '/admin/settings', icon: FiSettings, label: 'Settings' },
   ];

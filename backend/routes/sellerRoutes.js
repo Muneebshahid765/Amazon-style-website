@@ -78,4 +78,7 @@ router
   .put(sellerController.updateSellerCoupon)
   .delete(sellerController.deleteSellerCoupon);
 
+// Subscription
+router.get('/subscription/status', sellerController.getSubscriptionStatus);
+
 export default router;

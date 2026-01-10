@@ -26,6 +26,7 @@ import AdminCoupons from './pages/admin/marketing/Coupons.jsx';
 import AdminSettings from './pages/admin/settings/Settings.jsx';
 import AdminReviewList from './pages/admin/reviews/ReviewList.jsx';
 import AdminCategoryList from './pages/admin/categories/CategoryList.jsx';
+import AdminSubscriptionPlans from './pages/admin/subscriptions/SubscriptionPlans.jsx';
 import SellerDashboard from './pages/seller/SellerDashboard.jsx';
 import SellerProductList from './pages/seller/products/ProductList.jsx';
 import SellerAddProduct from './pages/seller/products/AddProduct.jsx';
@@ -111,6 +112,7 @@ function App() {
           <Route path="finance/revenue" element={<AdminAnalytics />} />
           <Route path="finance/payouts" element={<AdminAnalytics />} />
           <Route path="finance/transactions" element={<AdminAnalytics />} />
+          <Route path="subscriptions" element={<AdminSubscriptionPlans />} />
           <Route path="reports" element={<AdminAnalytics />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>

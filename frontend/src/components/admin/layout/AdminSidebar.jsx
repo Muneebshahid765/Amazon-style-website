@@ -12,6 +12,7 @@ import {
   FiSettings,
   FiChevronDown,
   FiChevronUp,
+  FiCreditCard,
 } from 'react-icons/fi';
 import { useSelector } from 'react-redux';
 import styles from './AdminSidebar.module.css';
@@ -43,6 +44,7 @@ const buildNav = (isMultiVendor) => [
   { label: 'Sellers', icon: FiUserCheck, path: '/admin/sellers' },
   { label: 'Reviews', icon: FiStar, path: '/admin/reviews' },
   { label: 'Coupons', icon: FiTag, path: '/admin/marketing/coupons' },
+  { label: 'Subscriptions', icon: FiCreditCard, path: '/admin/subscriptions' },
   { label: 'Analytics', icon: FiBarChart2, path: '/admin/analytics' },
   { label: 'Settings', icon: FiSettings, path: '/admin/settings' },
 ];

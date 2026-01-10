@@ -398,6 +398,103 @@ export const fetchActivityLogs = createAsyncThunk(
   }
 );
 
+// ==================== SUBSCRIPTION PLANS ====================
+export const fetchSubscriptionPlans = createAsyncThunk(
+  'admin/fetchSubscriptionPlans',
+  async (params, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/subscriptions/plans', { params });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch subscription plans');
+    }
+  }
+);
+
+export const createSubscriptionPlan = createAsyncThunk(
+  'admin/createSubscriptionPlan',
+  async (planData, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/subscriptions/plans', planData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to create subscription plan');
+    }
+  }
+);
+
+export const updateSubscriptionPlan = createAsyncThunk(
+  'admin/updateSubscriptionPlan',
+  async ({ id, ...planData }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/subscriptions/plans/${id}`, planData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update subscription plan');
+    }
+  }
+);
+
+export const deleteSubscriptionPlan = createAsyncThunk(
+  'admin/deleteSubscriptionPlan',
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await api.delete(`/subscriptions/plans/${id}`);
+      return { ...response.data, id };
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete subscription plan');
+    }
+  }
+);
+
+export const togglePlanStatus = createAsyncThunk(
+  'admin/togglePlanStatus',
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await api.patch(`/subscriptions/plans/${id}/toggle-status`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to toggle plan status');
+    }
+  }
+);
+
+export const assignPlanToUser = createAsyncThunk(
+  'admin/assignPlanToUser',
+  async ({ userId, planId }, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/subscriptions/assign', { userId, planId });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to assign plan to user');
+    }
+  }
+);
+
+export const fetchSubscriptionStats = createAsyncThunk(
+  'admin/fetchSubscriptionStats',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/subscriptions/stats');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch subscription stats');
+    }
+  }
+);
+
+export const fetchUsersWithSubscriptions = createAsyncThunk(
+  'admin/fetchUsersWithSubscriptions',
+  async (params, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/subscriptions/users', { params });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch users with subscriptions');
+    }
+  }
+);
+
 // ==================== INITIAL STATE ====================
 const initialState = {
   dashboardStats: null,
@@ -419,6 +516,9 @@ const initialState = {
   coupons: [],
   categories: [],
   activityLogs: [],
+  subscriptionPlans: [],
+  subscriptionStats: null,
+  usersWithSubscriptions: [],
   pagination: {
     total: 0,
     totalPages: 1,
@@ -664,6 +764,57 @@ const adminSlice = createSlice({
         };
       })
       .addCase(fetchActivityLogs.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Subscription Plans
+      .addCase(fetchSubscriptionPlans.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchSubscriptionPlans.fulfilled, (state, action) => {
+        state.loading = false;
+        state.subscriptionPlans = action.payload.plans || [];
+      })
+      .addCase(fetchSubscriptionPlans.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(createSubscriptionPlan.fulfilled, (state, action) => {
+        state.subscriptionPlans.unshift(action.payload.plan);
+      })
+      .addCase(updateSubscriptionPlan.fulfilled, (state, action) => {
+        const index = state.subscriptionPlans.findIndex(p => p._id === action.payload.plan._id);
+        if (index !== -1) {
+          state.subscriptionPlans[index] = action.payload.plan;
+        }
+      })
+      .addCase(deleteSubscriptionPlan.fulfilled, (state, action) => {
+        state.subscriptionPlans = state.subscriptionPlans.filter(p => p._id !== action.payload.id);
+      })
+      .addCase(togglePlanStatus.fulfilled, (state, action) => {
+        const index = state.subscriptionPlans.findIndex(p => p._id === action.payload.plan._id);
+        if (index !== -1) {
+          state.subscriptionPlans[index] = action.payload.plan;
+        }
+      })
+      // Subscription Stats
+      .addCase(fetchSubscriptionStats.fulfilled, (state, action) => {
+        state.subscriptionStats = action.payload;
+      })
+      // Users with Subscriptions
+      .addCase(fetchUsersWithSubscriptions.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchUsersWithSubscriptions.fulfilled, (state, action) => {
+        state.loading = false;
+        state.usersWithSubscriptions = action.payload.users || [];
+        state.pagination = {
+          total: action.payload.total || 0,
+          totalPages: action.payload.totalPages || 1,
+          currentPage: action.payload.currentPage || 1,
+        };
+      })
+      .addCase(fetchUsersWithSubscriptions.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

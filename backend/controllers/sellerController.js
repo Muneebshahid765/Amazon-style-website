@@ -17,6 +17,12 @@ import {
   uploadProductImages,
 } from '../utils/productHelpers.js';
 import { stripeClient } from '../config/stripe.js';
+import {
+  checkPlanLimit,
+  incrementUsage,
+  checkAndResetCycle,
+  getUserPlanWithLimits,
+} from '../utils/subscriptionHelper.js';
 
 export const getDashboardStats = async (req, res, next) => {
   try {
@@ -148,6 +154,36 @@ export const getProductById = async (req, res, next) => {
 
 export const createProduct = async (req, res, next) => {
   try {
+    // Check and reset cycle if needed
+    await checkAndResetCycle(req.user._id);
+
+    // Check subscription limits
+    const limitCheck = await checkPlanLimit(req.user._id, 'upload');
+    if (!limitCheck.allowed) {
+      return res.status(403).json({ 
+        message: limitCheck.reason,
+        limit: limitCheck.limit,
+        used: limitCheck.used,
+        upgradeRequired: true
+      });
+    }
+
+    // Check max active products limit
+    const activeProductsCount = await Product.countDocuments({ 
+      seller: req.user._id, 
+      status: 'active' 
+    });
+    const planInfo = await getUserPlanWithLimits(req.user._id);
+    
+    if (activeProductsCount >= planInfo.limits.maxActiveProducts) {
+      return res.status(403).json({ 
+        message: `Maximum active products limit reached (${planInfo.limits.maxActiveProducts}). Upgrade your plan or deactivate some products.`,
+        limit: planInfo.limits.maxActiveProducts,
+        current: activeProductsCount,
+        upgradeRequired: true
+      });
+    }
+
     const productData = { ...req.body, seller: req.user._id };
     if (!productData.title) {
       return res.status(400).json({ message: 'Product title is required' });
@@ -206,6 +242,9 @@ export const createProduct = async (req, res, next) => {
       await store.save();
     }
 
+    // Increment upload usage counter
+    await incrementUsage(req.user._id, 'upload');
+
     res.status(201).json({ product });
   } catch (error) {
     next(error);
@@ -214,6 +253,20 @@ export const createProduct = async (req, res, next) => {
 
 export const updateProduct = async (req, res, next) => {
   try {
+    // Check and reset cycle if needed
+    await checkAndResetCycle(req.user._id);
+
+    // Check subscription limits for edits
+    const limitCheck = await checkPlanLimit(req.user._id, 'edit');
+    if (!limitCheck.allowed) {
+      return res.status(403).json({ 
+        message: limitCheck.reason,
+        limit: limitCheck.limit,
+        used: limitCheck.used,
+        upgradeRequired: true
+      });
+    }
+
     const { id } = req.params;
     const product = await Product.findOne({ _id: id, seller: req.user._id });
 
@@ -257,6 +310,9 @@ export const updateProduct = async (req, res, next) => {
     Object.assign(product, updatedData);
     await product.save();
 
+    // Increment edit usage counter
+    await incrementUsage(req.user._id, 'edit');
+
     res.json({ product });
   } catch (error) {
     next(error);
@@ -265,6 +321,20 @@ export const updateProduct = async (req, res, next) => {
 
 export const deleteProduct = async (req, res, next) => {
   try {
+    // Check and reset cycle if needed
+    await checkAndResetCycle(req.user._id);
+
+    // Check subscription limits for deletes
+    const limitCheck = await checkPlanLimit(req.user._id, 'delete');
+    if (!limitCheck.allowed) {
+      return res.status(403).json({ 
+        message: limitCheck.reason,
+        limit: limitCheck.limit,
+        used: limitCheck.used,
+        upgradeRequired: true
+      });
+    }
+
     const { id } = req.params;
     const product = await Product.findOne({ _id: id, seller: req.user._id });
 
@@ -274,6 +344,9 @@ export const deleteProduct = async (req, res, next) => {
 
     product.status = 'inactive';
     await product.save();
+
+    // Increment delete usage counter
+    await incrementUsage(req.user._id, 'delete');
 
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
@@ -1328,6 +1401,43 @@ export const getSellerCoupons = async (req, res, next) => {
       total,
       totalPages: Math.ceil(total / numericLimit) || 1,
       currentPage: numericPage,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==================== SUBSCRIPTION STATUS ====================
+
+export const getSubscriptionStatus = async (req, res, next) => {
+  try {
+    await checkAndResetCycle(req.user._id);
+    
+    const planInfo = await getUserPlanWithLimits(req.user._id);
+    const activeProductsCount = await Product.countDocuments({ 
+      seller: req.user._id, 
+      status: 'active' 
+    });
+
+    res.json({
+      plan: {
+        id: planInfo.planId,
+        name: planInfo.planName,
+        tier: planInfo.tier,
+        status: planInfo.planStatus,
+        assignedAt: planInfo.planAssignedAt,
+        cycleStartedAt: planInfo.planCycleStartedAt,
+        renewsAt: planInfo.planRenewsAt,
+      },
+      limits: planInfo.limits,
+      usage: planInfo.usage,
+      activeProducts: activeProductsCount,
+      remaining: {
+        uploads: Math.max(0, planInfo.limits.uploadsPerCycle - planInfo.usage.uploadsUsed),
+        edits: Math.max(0, planInfo.limits.editsPerCycle - planInfo.usage.editsUsed),
+        deletes: Math.max(0, planInfo.limits.deletesPerCycle - planInfo.usage.deletesUsed),
+        activeProducts: Math.max(0, planInfo.limits.maxActiveProducts - activeProductsCount),
+      },
     });
   } catch (error) {
     next(error);
