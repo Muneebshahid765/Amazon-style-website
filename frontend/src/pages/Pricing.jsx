@@ -7,13 +7,16 @@ import styles from './Pricing.module.css';
 
 const normalizeDateOnly = (value) => {
   if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dateStr = typeof value === 'string' ? value.slice(0, 10) : value;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
 };
 
 const isDiscountActive = (discount = {}) => {
-  if (!discount?.isActive || !discount.value) return false;
+  if (!discount || typeof discount !== 'object') return false;
+  if (discount.isActive !== true) return false;
+  if (!discount.value || discount.value <= 0) return false;
   const today = new Date();
   const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const startDate = normalizeDateOnly(discount.startsAt);

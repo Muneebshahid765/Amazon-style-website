@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import SubscriptionPlan from '../models/SubscriptionPlan.js';
 import User from '../models/User.js';
 import SubscriptionTransaction from '../models/SubscriptionTransaction.js';
@@ -245,6 +246,57 @@ export const deletePlan = async (req, res, next) => {
     }
 
     res.json({ message: 'Subscription plan deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deletePlansBulk = async (req, res, next) => {
+  try {
+    const { planIds = [] } = req.body || {};
+
+    if (!Array.isArray(planIds) || !planIds.length) {
+      return res.status(400).json({ message: 'Select at least one subscription plan to delete' });
+    }
+
+    const objectIds = planIds.map((id) => new mongoose.Types.ObjectId(id));
+    const plans = await SubscriptionPlan.find({ _id: { $in: objectIds } });
+
+    if (!plans.length) {
+      return res.status(404).json({ message: 'No matching subscription plans found' });
+    }
+
+    const usageCounts = await User.aggregate([
+      { $match: { currentPlan: { $in: objectIds } } },
+      { $group: { _id: '$currentPlan', count: { $sum: 1 } } },
+    ]);
+
+    const blockedMap = usageCounts.reduce((acc, item) => {
+      acc[item._id.toString()] = item.count;
+      return acc;
+    }, {});
+
+    const blockingPlans = plans
+      .filter((plan) => blockedMap[plan._id.toString()])
+      .map((plan) => ({
+        id: plan._id,
+        name: plan.name,
+        users: blockedMap[plan._id.toString()],
+      }));
+
+    if (blockingPlans.length) {
+      return res.status(400).json({
+        message: 'Cannot delete plans that have active subscribers',
+        blockingPlans,
+      });
+    }
+
+    await SubscriptionPlan.deleteMany({ _id: { $in: objectIds } });
+
+    res.json({
+      message: `Deleted ${plans.length} plan${plans.length === 1 ? '' : 's'}`,
+      deletedIds: plans.map((plan) => plan._id),
+    });
   } catch (error) {
     next(error);
   }

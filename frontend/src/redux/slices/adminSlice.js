@@ -447,6 +447,18 @@ export const deleteSubscriptionPlan = createAsyncThunk(
   }
 );
 
+export const deleteSubscriptionPlansBulk = createAsyncThunk(
+  'admin/deleteSubscriptionPlansBulk',
+  async (planIds, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/subscriptions/plans/bulk-delete', { planIds });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to delete plans' });
+    }
+  }
+);
+
 export const togglePlanStatus = createAsyncThunk(
   'admin/togglePlanStatus',
   async (id, { rejectWithValue }) => {
@@ -467,6 +479,22 @@ export const assignPlanToUser = createAsyncThunk(
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to assign plan to user');
+    }
+  }
+);
+
+export const applyBulkDiscountToPlans = createAsyncThunk(
+  'admin/applyBulkDiscountToPlans',
+  async ({ planIds = [], applyToAll = false, discount }, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/subscriptions/plans/bulk-discount', {
+        planIds,
+        applyToAll,
+        discount,
+      });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to apply bulk discount');
     }
   }
 );
@@ -791,6 +819,20 @@ const adminSlice = createSlice({
       .addCase(deleteSubscriptionPlan.fulfilled, (state, action) => {
         state.subscriptionPlans = state.subscriptionPlans.filter(p => p._id !== action.payload.id);
       })
+      .addCase(deleteSubscriptionPlansBulk.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(deleteSubscriptionPlansBulk.fulfilled, (state, action) => {
+        state.loading = false;
+        const deletedIds = action.payload.deletedIds || [];
+        state.subscriptionPlans = state.subscriptionPlans.filter(
+          (plan) => !deletedIds.includes(plan._id)
+        );
+      })
+      .addCase(deleteSubscriptionPlansBulk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || action.payload;
+      })
       .addCase(togglePlanStatus.fulfilled, (state, action) => {
         const index = state.subscriptionPlans.findIndex(p => p._id === action.payload.plan._id);
         if (index !== -1) {
@@ -815,6 +857,22 @@ const adminSlice = createSlice({
         };
       })
       .addCase(fetchUsersWithSubscriptions.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(applyBulkDiscountToPlans.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(applyBulkDiscountToPlans.fulfilled, (state, action) => {
+        state.loading = false;
+        const updatedPlans = action.payload.plans || [];
+        if (!updatedPlans.length) return;
+        state.subscriptionPlans = state.subscriptionPlans.map((plan) => {
+          const match = updatedPlans.find((updated) => updated._id === plan._id);
+          return match || plan;
+        });
+      })
+      .addCase(applyBulkDiscountToPlans.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

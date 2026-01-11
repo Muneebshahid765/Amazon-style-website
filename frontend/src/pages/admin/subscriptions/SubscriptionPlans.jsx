@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import {
@@ -10,6 +10,8 @@ import {
   fetchSubscriptionStats,
   fetchUsersWithSubscriptions,
   assignPlanToUser,
+  applyBulkDiscountToPlans,
+  deleteSubscriptionPlansBulk,
 } from '../../../redux/slices/adminSlice';
 import {
   FiPlus,
@@ -22,6 +24,9 @@ import {
   FiPackage,
   FiPieChart,
   FiUserPlus,
+  FiPercent,
+  FiLayers,
+  FiAlertTriangle,
 } from 'react-icons/fi';
 import styles from './SubscriptionPlans.module.css';
 
@@ -48,22 +53,28 @@ const mapPlanDiscountToState = (plan) => ({
   minPrice: plan?.discount?.minPrice ?? 0,
 });
 
+const isAdminDiscountActive = (discount) => {
+  if (!discount || typeof discount !== 'object') return false;
+  if (discount.isActive !== true) return false;
+  if (!discount.value || Number(discount.value) <= 0) return false;
+  return true;
+};
+
 const calculateDiscountedPrice = (price, discount) => {
-  if (!discount?.isActive || !discount.value) return price;
-  const now = new Date();
-  if (discount.startsAt && new Date(discount.startsAt) > now) return price;
-  if (discount.endsAt && new Date(discount.endsAt) < now) return price;
+  const basePrice = Number(price ?? 0);
+  if (!Number.isFinite(basePrice)) return 0;
+  if (!isAdminDiscountActive(discount)) return basePrice;
 
   let finalPrice =
     discount.type === 'flat'
-      ? price - Number(discount.value || 0)
-      : price - (price * Number(discount.value || 0)) / 100;
+      ? basePrice - Number(discount.value || 0)
+      : basePrice - (basePrice * Number(discount.value || 0)) / 100;
 
   if (discount.minPrice) {
     finalPrice = Math.max(finalPrice, Number(discount.minPrice));
   }
 
-  return Number(finalPrice.toFixed(2));
+  return Number(Math.max(finalPrice, 0).toFixed(2));
 };
 
 const SubscriptionPlans = () => {
@@ -105,6 +116,19 @@ const SubscriptionPlans = () => {
     userId: '',
     planId: '',
   });
+  const [selectedPlans, setSelectedPlans] = useState([]);
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [bulkDiscount, setBulkDiscount] = useState({
+    ...defaultDiscountState,
+    applyToAll: false,
+  });
+  const bulkModalClassName = `${styles.modal} ${styles.modalSmall}`;
+  const selectedPlanDetails = useMemo(
+    () => subscriptionPlans.filter((plan) => selectedPlans.includes(plan._id)),
+    [subscriptionPlans, selectedPlans]
+  );
+  const hasSelectedPlans = selectedPlans.length > 0;
 
   useEffect(() => {
     dispatch(fetchSubscriptionPlans());
@@ -125,6 +149,118 @@ const SubscriptionPlans = () => {
     if (userFilters.planStatus) params.planStatus = userFilters.planStatus;
     if (userFilters.tier) params.tier = userFilters.tier;
     dispatch(fetchUsersWithSubscriptions(params));
+  };
+
+  const handlePlanSelection = (planId) => {
+    setSelectedPlans((prev) =>
+      prev.includes(planId) ? prev.filter((id) => id !== planId) : [...prev, planId]
+    );
+  };
+
+  const handleClearSelection = () => {
+    setSelectedPlans([]);
+  };
+
+  const handleSelectAllPlans = () => {
+    if (!subscriptionPlans.length) return;
+    if (selectedPlans.length === subscriptionPlans.length) {
+      setSelectedPlans([]);
+    } else {
+      setSelectedPlans(subscriptionPlans.map((plan) => plan._id));
+    }
+  };
+
+  const handleOpenBulkDiscount = () => {
+    setShowBulkModal(true);
+  };
+
+  const handleBulkDelete = () => {
+    if (!selectedPlans.length) {
+      toast.error('Select at least one plan to delete');
+      return;
+    }
+
+    setShowBulkDeleteConfirm(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    try {
+      await dispatch(deleteSubscriptionPlansBulk(selectedPlans)).unwrap();
+      toast.success(`Deleted ${selectedPlans.length} plan${selectedPlans.length === 1 ? '' : 's'}`);
+      setSelectedPlans([]);
+      setShowBulkDeleteConfirm(false);
+      dispatch(fetchSubscriptionPlans());
+      dispatch(fetchSubscriptionStats());
+    } catch (error) {
+      const errMsg =
+        error?.blockingPlans?.length
+          ? `${error.message}: ${error.blockingPlans
+              .map((p) => `${p.name} (${p.users} users)`)
+              .join(', ')}`
+          : error?.message || 'Failed to delete plans';
+      toast.error(errMsg);
+      setShowBulkDeleteConfirm(false);
+    }
+  };
+
+  const cancelBulkDelete = () => {
+    setShowBulkDeleteConfirm(false);
+  };
+
+  const handleCloseBulkDiscount = () => {
+    setShowBulkModal(false);
+    setBulkDiscount({ ...defaultDiscountState, applyToAll: false });
+  };
+
+  const handleBulkDiscountChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    if (name === 'applyToAll') {
+      setBulkDiscount((prev) => ({ ...prev, applyToAll: checked }));
+      if (checked) {
+        setSelectedPlans([]);
+      }
+      return;
+    }
+    setBulkDiscount((prev) => ({
+      ...prev,
+      [name]:
+        type === 'checkbox'
+          ? checked
+          : name === 'value' || name === 'minPrice'
+          ? Number(value)
+          : value,
+    }));
+  };
+
+  const handleBulkDiscountSubmit = async (e) => {
+    e.preventDefault();
+    const { applyToAll, ...discountPayload } = bulkDiscount;
+
+    if (!applyToAll && selectedPlans.length === 0) {
+      toast.error('Select at least one plan or enable Apply to all');
+      return;
+    }
+
+    try {
+      await dispatch(
+        applyBulkDiscountToPlans({
+          planIds: applyToAll ? [] : selectedPlans,
+          applyToAll,
+          discount: discountPayload,
+        })
+      ).unwrap();
+
+      toast.success(
+        applyToAll ? 'Discount applied to all plans' : 'Discount applied to selected plans'
+      );
+      setSelectedPlans([]);
+      setBulkDiscount({ ...defaultDiscountState, applyToAll: false });
+      setShowBulkModal(false);
+      dispatch(fetchSubscriptionPlans());
+      dispatch(fetchSubscriptionStats());
+    } catch (error) {
+      toast.error(error || 'Failed to apply discount');
+    }
   };
 
   const handleOpenModal = (plan = null) => {
@@ -402,14 +538,64 @@ const SubscriptionPlans = () => {
                 <h2>Plan Library</h2>
                 <p>Manage plan tiers, pricing and quotas</p>
               </div>
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={() => handleOpenModal()}
-              >
-                <FiPlus /> Create Plan
-              </button>
+              <div className={styles.headingActions}>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => handleOpenModal()}
+                >
+                  <FiPlus /> Create Plan
+                </button>
+                <button
+                  type="button"
+                  className={styles.bulkButton}
+                  onClick={handleOpenBulkDiscount}
+                >
+                  <FiPercent /> Bulk Discount
+                </button>
+                <button
+                  type="button"
+                  className={styles.dangerButton}
+                  onClick={handleBulkDelete}
+                  disabled={!hasSelectedPlans}
+                >
+                  <FiTrash2 /> Delete Selected
+                </button>
+              </div>
             </div>
+
+            {hasSelectedPlans && (
+              <div className={styles.bulkToolbar}>
+                <div className={styles.bulkInfo}>
+                  <span className={styles.bulkCount}>
+                    {selectedPlans.length} plan{selectedPlans.length === 1 ? '' : 's'} selected
+                  </span>
+                  <button type="button" className={styles.linkButton} onClick={handleSelectAllPlans}>
+                    <FiLayers />{' '}
+                    {selectedPlans.length === subscriptionPlans.length ? 'Unselect all' : 'Select all'}
+                  </button>
+                </div>
+                <div className={styles.bulkActions}>
+                  <button
+                    type="button"
+                    className={styles.applyButton}
+                    onClick={handleOpenBulkDiscount}
+                  >
+                    <FiPercent /> Apply Discount
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.dangerButtonSolid}
+                    onClick={handleBulkDelete}
+                  >
+                    <FiTrash2 /> Delete
+                  </button>
+                  <button type="button" className={styles.ghostButton} onClick={handleClearSelection}>
+                    <FiX /> Clear
+                  </button>
+                </div>
+              </div>
+            )}
 
             {subscriptionPlans.length === 0 ? (
               <div className={styles.emptyStateCard}>
@@ -427,9 +613,35 @@ const SubscriptionPlans = () => {
               </div>
             ) : (
               <div className={styles.plansGrid}>
-                {subscriptionPlans.map((plan) => (
-                  <div key={plan._id} className={styles.planCard}>
-                    <div className={styles.planHeader} style={{ borderColor: getTierColor(plan.tier) }}>
+                {subscriptionPlans.map((plan) => {
+                  const isSelected = selectedPlans.includes(plan._id);
+                  const planPrice = Number(plan.priceMonthly ?? 0);
+                  const discountActive = isAdminDiscountActive(plan.discount);
+                  const discountedPrice = calculateDiscountedPrice(planPrice, plan.discount);
+                  const showDiscount = discountActive && discountedPrice !== planPrice;
+                  const displayPrice = showDiscount ? discountedPrice.toFixed(2) : planPrice.toFixed(2);
+                  return (
+                    <div
+                      key={plan._id}
+                      className={`${styles.planCard} ${isSelected ? styles.planSelected : ''}`}
+                      onClick={() => {
+                        if (!bulkDiscount.applyToAll) handlePlanSelection(plan._id);
+                      }}
+                    >
+                      {!bulkDiscount.applyToAll && (
+                        <label
+                          className={styles.planSelectControl}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handlePlanSelection(plan._id)}
+                          />
+                          <span></span>
+                        </label>
+                      )}
+                      <div className={styles.planHeader} style={{ borderColor: getTierColor(plan.tier) }}>
                       <div className={styles.planTitleRow}>
                         <h3>{plan.name}</h3>
                         <span
@@ -443,21 +655,21 @@ const SubscriptionPlans = () => {
                       <div className={styles.planPrice}>
                         <FiDollarSign />
                         <span className={styles.price}>
-                          {calculateDiscountedPrice(plan.priceMonthly, plan.discount)}
+                          {displayPrice}
                         </span>
                         <span className={styles.period}>/month</span>
                       </div>
-                      {plan.discount?.isActive && plan.discount?.value > 0 && (
+                      {showDiscount && (
                         <div className={styles.discountMeta}>
-                          <span className={styles.originalPrice}>${plan.priceMonthly.toFixed(2)}</span>
+                          <span className={styles.originalPrice}>${planPrice.toFixed(2)}</span>
                           <span className={styles.discountLabel}>
                             {plan.discount.label || (plan.discount.type === 'flat'
-                              ? `Save $${plan.discount.value}`
-                              : `Save ${plan.discount.value}%`)}
+                              ? `Save $${Number(plan.discount.value).toFixed(0)}`
+                              : `Save ${Number(plan.discount.value).toFixed(0)}%`)}
                           </span>
                           {plan.discount.startsAt && plan.discount.endsAt && (
                             <span className={styles.discountDates}>
-                              {plan.discount.startsAt.slice(0, 10)} - {plan.discount.endsAt.slice(0, 10)}
+                              {new Date(plan.discount.startsAt).toLocaleDateString()} - {new Date(plan.discount.endsAt).toLocaleDateString()}
                             </span>
                           )}
                         </div>
@@ -502,19 +714,34 @@ const SubscriptionPlans = () => {
                         className={`${styles.statusBtn} ${
                           plan.isActive ? styles.active : styles.inactive
                         }`}
-                        onClick={() => handleToggleStatus(plan._id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleStatus(plan._id);
+                        }}
                       >
                         {plan.isActive ? 'Active' : 'Inactive'}
                       </button>
-                      <button className={styles.editBtn} onClick={() => handleOpenModal(plan)}>
+                      <button
+                        className={styles.editBtn}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenModal(plan);
+                        }}
+                      >
                         <FiEdit2 />
                       </button>
-                      <button className={styles.deleteBtn} onClick={() => handleDelete(plan._id)}>
+                      <button
+                        className={styles.deleteBtn}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(plan._id);
+                        }}
+                      >
                         <FiTrash2 />
                       </button>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             )}
           </section>
@@ -958,6 +1185,167 @@ const SubscriptionPlans = () => {
                 </button>
               </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+      {showBulkModal && (
+        <div className={styles.modalOverlay} onClick={handleCloseBulkDiscount}>
+          <div className={`${styles.modal} ${styles.modalSmall}`} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>Apply Discount</h2>
+              <button className={styles.closeBtn} onClick={handleCloseBulkDiscount}>
+                <FiX />
+              </button>
+            </div>
+
+            <form onSubmit={handleBulkDiscountSubmit} className={styles.bulkForm}>
+              <div className={styles.bulkScope}>
+                <label>
+                  <input
+                    type="checkbox"
+                    name="applyToAll"
+                    checked={bulkDiscount.applyToAll}
+                    onChange={handleBulkDiscountChange}
+                  />
+                  Apply to all plans
+                </label>
+                {!bulkDiscount.applyToAll && (
+                  <p className={styles.scopeHint}>
+                    {selectedPlans.length
+                      ? `${selectedPlans.length} plan${selectedPlans.length === 1 ? '' : 's'} selected`
+                      : 'Select plans from the grid to include in this update'}
+                  </p>
+                )}
+              </div>
+
+              <div className={styles.formSection}>
+                <div className={styles.discountToggle}>
+                  <label className={styles.switch}>
+                    <input
+                      type="checkbox"
+                      name="isActive"
+                      checked={bulkDiscount.isActive}
+                      onChange={handleBulkDiscountChange}
+                    />
+                    <span className={styles.slider}></span>
+                  </label>
+                  <span>{bulkDiscount.isActive ? 'Discount Active' : 'No Active Discount'}</span>
+                </div>
+
+                {bulkDiscount.isActive && (
+                  <div className={styles.discountGrid}>
+                    <div className={styles.formGroup}>
+                      <label>Type</label>
+                      <select
+                        name="type"
+                        value={bulkDiscount.type}
+                        onChange={handleBulkDiscountChange}
+                      >
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="flat">Flat Amount ($)</option>
+                      </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Value</label>
+                      <input
+                        type="number"
+                        name="value"
+                        min="0"
+                        value={bulkDiscount.value}
+                        onChange={handleBulkDiscountChange}
+                        required
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Min Price</label>
+                      <input
+                        type="number"
+                        name="minPrice"
+                        min="0"
+                        value={bulkDiscount.minPrice}
+                        onChange={handleBulkDiscountChange}
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Label</label>
+                      <input
+                        type="text"
+                        name="label"
+                        value={bulkDiscount.label}
+                        onChange={handleBulkDiscountChange}
+                        placeholder="e.g. New Year Offer"
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Starts At</label>
+                      <input
+                        type="date"
+                        name="startsAt"
+                        value={bulkDiscount.startsAt}
+                        onChange={handleBulkDiscountChange}
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Ends At</label>
+                      <input
+                        type="date"
+                        name="endsAt"
+                        value={bulkDiscount.endsAt}
+                        onChange={handleBulkDiscountChange}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.modalActions}>
+                <button type="button" className={styles.cancelBtn} onClick={handleCloseBulkDiscount}>
+                  Cancel
+                </button>
+                <button type="submit" className={styles.submitBtn}>
+                  Apply Discount
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {showBulkDeleteConfirm && (
+        <div className={styles.modalOverlay} onClick={cancelBulkDelete}>
+          <div className={`${styles.modal} ${styles.confirmModal}`} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>Delete {selectedPlans.length} plan{selectedPlans.length === 1 ? '' : 's'}?</h2>
+              <button className={styles.closeBtn} onClick={cancelBulkDelete}>
+                <FiX />
+              </button>
+            </div>
+            <div className={styles.confirmBody}>
+              <div className={styles.confirmIcon}>
+                <FiAlertTriangle />
+              </div>
+              <p>
+                This action will permanently delete the selected subscription plan
+                {selectedPlans.length === 1 ? '' : 's'}. Sellers currently assigned to these plans prevent deletion automatically.
+              </p>
+              {selectedPlanDetails.length > 0 && (
+                <ul className={styles.selectedPlanList}>
+                  {selectedPlanDetails.slice(0, 4).map((plan) => (
+                    <li key={plan._id}>{plan.name}</li>
+                  ))}
+                  {selectedPlans.length > 4 && (
+                    <li className={styles.morePlans}>+{selectedPlans.length - 4} more</li>
+                  )}
+                </ul>
+              )}
+            </div>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.cancelBtn} onClick={cancelBulkDelete}>
+                Cancel
+              </button>
+              <button type="button" className={styles.dangerButtonSolid} onClick={confirmBulkDelete}>
+                <FiTrash2 /> Delete Plans
+              </button>
             </div>
           </div>
         </div>

@@ -21,6 +21,7 @@ router.post('/plans', subscriptionController.createPlan);
 router.put('/plans/:id', subscriptionController.updatePlan);
 router.delete('/plans/:id', subscriptionController.deletePlan);
 router.patch('/plans/:id/toggle-status', subscriptionController.togglePlanStatus);
+router.post('/plans/bulk-delete', subscriptionController.deletePlansBulk);
 
 router.post('/plans/bulk-discount', subscriptionController.applyBulkDiscount);
 router.post('/assign', subscriptionController.assignPlanToUserAdmin);
