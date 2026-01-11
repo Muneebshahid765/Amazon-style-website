@@ -1,0 +1,219 @@
+.transactionsWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: #111827;
+}
+
+.header p {
+  margin: 0.25rem 0 0;
+  color: #6b7280;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.summaryCard {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+}
+
+.summaryCard p {
+  margin: 0 0 0.35rem;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.summaryCard strong {
+  font-size: 1.5rem;
+  color: #111827;
+}
+
+.filtersRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.searchBox {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+}
+
+.searchBox input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 0.95rem;
+}
+
+.selectBox label {
+  display: block;
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-bottom: 0.35rem;
+}
+
+.selectBox select {
+  min-width: 160px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  padding: 0.55rem 0.75rem;
+}
+
+.dateFilters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dateField {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+}
+
+.dateField input {
+  border: none;
+  outline: none;
+}
+
+.clearBtn {
+  border: none;
+  background: #f3f4f6;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.loadingState,
+.emptyState {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2.5rem;
+  text-align: center;
+  color: #6b7280;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tableWrapper {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.tableWrapper table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tableWrapper th,
+.tableWrapper td {
+  text-align: left;
+  padding: 1rem;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.95rem;
+}
+
+.tableWrapper thead {
+  background: #f9fafb;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.orderNumber {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  color: #4f46e5;
+}
+
+.method {
+  text-transform: capitalize;
+}
+
+.statusBadge {
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.statusBadge.pending { background: #fef3c7; color: #92400e; }
+.statusBadge.processing { background: #dbeafe; color: #1d4ed8; }
+.statusBadge.shipped { background: #cffafe; color: #0f766e; }
+.statusBadge.delivered { background: #d1fae5; color: #065f46; }
+.statusBadge.cancelled { background: #fee2e2; color: #b91c1c; }
+
+.total {
+  font-weight: 600;
+  color: #111827;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  align-items: center;
+}
+
+.pagination button {
+  border: none;
+  background: #111827;
+  color: #fff;
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tipCard {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(120deg, #eef2ff, #f5f3ff);
+  color: #4338ca;
+}
+
+@media (max-width: 640px) {
+  .filtersRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dateFilters {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

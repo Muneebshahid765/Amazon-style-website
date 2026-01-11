@@ -30,6 +30,15 @@ const ProductDetail = () => {
     setQuantity(1);
   }, [product?._id]);
 
+  const productTitle = useMemo(
+    () =>
+      product?.name?.trim() ||
+      product?.title?.trim() ||
+      product?.metaTitle?.trim() ||
+      'Product',
+    [product]
+  );
+
   const images = useMemo(() => product?.images || [], [product]);
 
   const handleQuantityChange = (type) => {
@@ -64,7 +73,7 @@ const ProductDetail = () => {
       <div className={styles.topSection}>
         <div className={styles.gallery}>
           <div className={styles.mainImage}>
-            <img src={images[activeImage]?.url || '/placeholder.png'} alt={product.name} />
+            <img src={images[activeImage]?.url || '/placeholder.png'} alt={productTitle} />
           </div>
           {images.length > 1 && (
             <div className={styles.thumbnails}>
@@ -74,7 +83,7 @@ const ProductDetail = () => {
                   className={`${styles.thumbnailBtn} ${index === activeImage ? styles.active : ''}`}
                   onClick={() => setActiveImage(index)}
                 >
-                  <img src={img.url} alt={`${product.name}-${index}`} />
+                  <img src={img.url} alt={`${productTitle}-${index}`} />
                 </button>
               ))}
             </div>
@@ -82,8 +91,8 @@ const ProductDetail = () => {
         </div>
 
         <div className={styles.infoSection}>
-          <p className={styles.breadcrumb}>Home / {product.category?.name}</p>
-          <h1 className={styles.title}>{product.name}</h1>
+          <p className={styles.breadcrumb}>Home / {product.category?.name || 'Catalog'}</p>
+          <h1 className={styles.title}>{productTitle}</h1>
           <p className={styles.brand}>Brand: {product.brand || 'NovaMart'}</p>
 
           {product.rating > 0 && (

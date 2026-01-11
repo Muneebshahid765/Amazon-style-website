@@ -514,6 +514,11 @@ const initialState = {
   orderDetail: null,
   earnings: null,
   transactions: [],
+  transactionSummary: {
+    totalDebits: 0,
+    totalCredits: 0,
+    net: 0,
+  },
   payoutHistory: [],
   payoutSettings: null,
   store: null,
@@ -640,9 +645,14 @@ const sellerSlice = createSlice({
       .addCase(fetchTransactions.fulfilled, (state, action) => {
         state.transactions = action.payload.transactions || [];
         state.pagination = {
-          total: action.payload.total,
-          totalPages: action.payload.totalPages,
-          currentPage: action.payload.currentPage,
+          total: action.payload.total || 0,
+          totalPages: action.payload.totalPages || 1,
+          currentPage: action.payload.currentPage || 1,
+        };
+        state.transactionSummary = action.payload.summary || {
+          totalDebits: 0,
+          totalCredits: 0,
+          net: 0,
         };
       })
       // Payout History

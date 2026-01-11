@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiMapPin, FiHeart, FiPackage, FiLock } from 'react-icons/fi';
+import { FiUser, FiMapPin, FiHeart, FiPackage, FiLock, FiCreditCard } from 'react-icons/fi';
 import ProfilePage from './ProfilePage';
 import AddressManager from '../components/user/AddressManager';
 import ChangePassword from '../components/user/ChangePassword';
 import OrderHistory from './OrderHistory';
 import Wishlist from './Wishlist';
+import BuyerTransactions from './BuyerTransactions';
 import styles from '../styles/UserDashboard.module.css';
 import { logoutUser } from '../redux/slices/authSlice';
 
@@ -40,6 +41,7 @@ const UserDashboard = () => {
       { id: 'profile', label: 'Profile', icon: FiUser },
       { id: 'addresses', label: 'Addresses', icon: FiMapPin },
       { id: 'orders', label: 'Orders', icon: FiPackage },
+      { id: 'transactions', label: 'Transactions', icon: FiCreditCard },
       { id: 'wishlist', label: 'Wishlist', icon: FiHeart },
       { id: 'security', label: 'Security', icon: FiLock },
     ];
@@ -64,6 +66,8 @@ const UserDashboard = () => {
         return <AddressManager />;
       case 'orders':
         return <OrderHistory />;
+      case 'transactions':
+        return <BuyerTransactions />;
       case 'wishlist':
         return <Wishlist />;
       case 'security':

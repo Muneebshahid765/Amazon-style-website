@@ -7,13 +7,65 @@ import { stripeClient } from '../config/stripe.js';
 
 const BILLING_CYCLES = ['monthly', 'yearly'];
 
+const normalizeDiscountInput = (discount = {}) => {
+  if (!discount || typeof discount !== 'object') {
+    return {
+      isActive: false,
+      type: 'percentage',
+      value: 0,
+      label: '',
+      startsAt: null,
+      endsAt: null,
+      minPrice: 0,
+    };
+  }
+
+  return {
+    isActive: Boolean(discount.isActive),
+    type: ['percentage', 'flat'].includes(discount.type) ? discount.type : 'percentage',
+    value: Number(discount.value) || 0,
+    label: discount.label?.trim() || '',
+    startsAt: discount.startsAt || null,
+    endsAt: discount.endsAt || null,
+    minPrice: Number(discount.minPrice) || 0,
+  };
+};
+
+const isDiscountCurrentlyActive = (discount = {}) => {
+  if (!discount?.isActive || !discount.value) return false;
+  const now = new Date();
+  if (discount.startsAt && new Date(discount.startsAt) > now) return false;
+  if (discount.endsAt && new Date(discount.endsAt) < now) return false;
+  return true;
+};
+
+const applyPlanDiscount = (planPrice, discount) => {
+  if (!isDiscountCurrentlyActive(discount)) {
+    return planPrice;
+  }
+
+  let finalPrice = planPrice;
+  if (discount.type === 'flat') {
+    finalPrice = planPrice - discount.value;
+  } else {
+    finalPrice = planPrice - (planPrice * discount.value) / 100;
+  }
+
+  if (discount.minPrice) {
+    finalPrice = Math.max(finalPrice, discount.minPrice);
+  }
+
+  return Number(finalPrice.toFixed(2));
+};
+
 const calculatePlanCharge = (plan, billingCycle) => {
   const monthlyPrice = Number(plan.priceMonthly || 0);
+  const effectiveMonthly = applyPlanDiscount(monthlyPrice, plan.discount);
   if (billingCycle === 'yearly') {
-    const yearly = monthlyPrice * 12 * 0.83; // 17% savings
+    const yearly = effectiveMonthly * 12 * 0.83; // 17% savings
     return { amount: Number(yearly.toFixed(2)), durationDays: (plan.durationDays || 30) * 12 };
   }
-  return { amount: Number(monthlyPrice.toFixed(2)), durationDays: plan.durationDays || 30 };
+  return { amount: Number(effectiveMonthly.toFixed(2)), durationDays: plan.durationDays || 30 };
 };
 
 const activatePlanForUser = async ({ user, plan, billingCycle }) => {
@@ -107,6 +159,7 @@ export const createPlan = async (req, res, next) => {
       ...req.body,
       createdBy: req.user._id,
       updatedBy: req.user._id,
+      discount: normalizeDiscountInput(req.body.discount),
     };
 
     // Validate required fields
@@ -145,6 +198,9 @@ export const updatePlan = async (req, res, next) => {
 
     // Don't allow changing slug directly
     delete updateData.slug;
+    if (Object.prototype.hasOwnProperty.call(req.body, 'discount')) {
+      updateData.discount = normalizeDiscountInput(req.body.discount);
+    }
 
     const plan = await SubscriptionPlan.findByIdAndUpdate(
       id,
@@ -524,6 +580,39 @@ export const getSubscriptionStats = async (req, res, next) => {
           return acc;
         }, {}),
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const applyBulkDiscount = async (req, res, next) => {
+  try {
+    const { planIds = [], applyToAll = false, discount } = req.body || {};
+
+    if (!applyToAll && (!Array.isArray(planIds) || planIds.length === 0)) {
+      return res.status(400).json({ message: 'Select at least one subscription plan' });
+    }
+
+    const normalizedDiscount = normalizeDiscountInput(discount);
+    const query = applyToAll ? {} : { _id: { $in: planIds } };
+
+    const result = await SubscriptionPlan.updateMany(query, {
+      discount: normalizedDiscount,
+      updatedBy: req.user._id,
+    });
+
+    const modified =
+      result.modifiedCount ??
+      result.nModified ??
+      result.matchedCount ??
+      0;
+
+    const updatedPlans = await SubscriptionPlan.find(query).sort({ priceMonthly: 1 });
+
+    res.json({
+      message: `Discount applied to ${modified} plan${modified === 1 ? '' : 's'}`,
+      plans: updatedPlans,
     });
   } catch (error) {
     next(error);

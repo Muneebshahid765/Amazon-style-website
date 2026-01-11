@@ -279,7 +279,15 @@ const getUserOrders = async (req, res, next) => {
   try {
     const { status, startDate, endDate, page = 1, limit = 10 } = req.query;
 
-    const query = { user: req.user._id };
+    // Support both logged-in users and guest users
+    const query = {};
+    if (req.user?._id) {
+      query.user = req.user._id;
+    } else if (req.guestId) {
+      query.guestId = req.guestId;
+    } else {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
 
     if (status) {
       query.status = status;
@@ -295,7 +303,7 @@ const getUserOrders = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit)
-      .populate('items.product', 'name images slug');
+      .populate('orderItems.product', 'name images slug');
 
     const count = await Order.countDocuments(query);
 
@@ -312,13 +320,20 @@ const getUserOrders = async (req, res, next) => {
 
 const getUserOrderById = async (req, res, next) => {
   try {
-    const order = await Order.findOne({
-      _id: req.params.id,
-      user: req.user._id,
-    }).populate('items.product', 'name images slug price');
+    const order = await Order.findById(req.params.id)
+      .populate('orderItems.product', 'name images slug price');
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Check authorization for both logged-in users and guests
+    const isOwner = 
+      (req.user?._id && order.user?.toString() === req.user._id.toString()) ||
+      (req.guestId && order.guestId === req.guestId);
+    
+    if (!isOwner) {
+      return res.status(403).json({ message: 'Not authorized' });
     }
 
     res.json({ order });
@@ -330,34 +345,37 @@ const getUserOrderById = async (req, res, next) => {
 const getUserTransactions = async (req, res, next) => {
   try {
     const { status, startDate, endDate, page = 1, limit = 20 } = req.query;
-    const matchQuery = { user: req.user._id };
+    const baseMatch = { user: req.user._id };
 
     if (status) {
-      matchQuery.status = status;
+      baseMatch.status = status;
     }
 
     if (startDate || endDate) {
-      matchQuery.createdAt = {};
-      if (startDate) matchQuery.createdAt.$gte = new Date(startDate);
-      if (endDate) matchQuery.createdAt.$lte = new Date(endDate);
+      baseMatch.createdAt = {};
+      if (startDate) baseMatch.createdAt.$gte = new Date(startDate);
+      if (endDate) baseMatch.createdAt.$lte = new Date(endDate);
     }
 
     const numericLimit = Number(limit) || 20;
-    const skip = (Number(page) - 1) * numericLimit;
+    const currentPage = Number(page) || 1;
+    const skip = (currentPage - 1) * numericLimit;
 
     const [orders, total, summaryAgg] = await Promise.all([
-      Order.find(matchQuery)
+      Order.find(baseMatch)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(numericLimit)
-        .select('orderNumber createdAt totalAmount status paymentMethod items'),
-      Order.countDocuments(matchQuery),
+        .select(
+          'orderNumber createdAt totalPrice totalAmount status paymentMethod paymentCardBrand paymentCardLast4 orderItems items currency'
+        ),
+      Order.countDocuments(baseMatch),
       Order.aggregate([
-        { $match: matchQuery },
+        { $match: baseMatch },
         {
           $group: {
             _id: null,
-            totalSpent: { $sum: '$totalAmount' },
+            totalSpent: { $sum: { $ifNull: ['$totalPrice', '$totalAmount'] } },
             totalOrders: { $sum: 1 },
           },
         },
@@ -368,13 +386,14 @@ const getUserTransactions = async (req, res, next) => {
       id: order._id,
       orderNumber: order.orderNumber,
       date: order.createdAt,
-      total: order.totalAmount,
+      total: order.totalPrice ?? order.totalAmount ?? 0,
       status: order.status,
-      paymentMethod: order.paymentMethod,
-      itemsCount: order.items?.length || 0,
+      paymentMethod: order.paymentDisplayMethod || order.paymentMethod,
+      currency: order.currency || 'PKR',
+      itemsCount: order.orderItems?.length || order.items?.length || 0,
     }));
 
-    const totalOrders = summaryAgg[0]?.totalOrders || 0;
+    const totalOrders = summaryAgg[0]?.totalOrders || total || 0;
     const totalSpent = summaryAgg[0]?.totalSpent || 0;
 
     res.json({
@@ -382,7 +401,7 @@ const getUserTransactions = async (req, res, next) => {
       pagination: {
         total,
         totalPages: Math.ceil(total / numericLimit) || 1,
-        currentPage: Number(page),
+        currentPage,
       },
       summary: {
         totalOrders,

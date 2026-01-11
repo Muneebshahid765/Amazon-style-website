@@ -6,6 +6,7 @@ import User from '../models/User.js';
 import { stripeClient } from '../config/stripe.js';
 import { getItemProductId } from '../utils/cartHelpers.js';
 import { sendEmail } from '../utils/sendEmail.js';
+import { createNotification } from './notificationController.js';
 
 const getCurrencySymbol = (currency = 'USD') => {
   if (currency === 'USD') return '$';
@@ -47,7 +48,7 @@ const notifySellersAboutOrder = async (order, buyerName = 'Customer') => {
 
     await Promise.all(
       sellers.map(async (sellerDoc) => {
-        if (!sellerDoc?.email) return;
+        if (!sellerDoc) return;
 
         const sellerItems = order.orderItems.filter(
           (item) => item.seller?.toString() === sellerDoc._id.toString()
@@ -55,36 +56,62 @@ const notifySellersAboutOrder = async (order, buyerName = 'Customer') => {
 
         if (!sellerItems.length) return;
 
-        const itemsHtml = buildSellerItemsHtml(sellerItems, currency);
-        const html = `
-          <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:640px;margin:0 auto;color:#111827;">
-            <h2 style="color:#111827;">New order received</h2>
-            <p>Hi ${sellerDoc.firstName || 'Seller'},</p>
-            <p>You have a new order <strong>${order.orderNumber}</strong> from <strong>${buyerName}</strong>.</p>
-            <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-              <thead>
-                <tr style="background:#111827;color:#fff;text-align:left;">
-                  <th style="padding:10px 12px;border-top-left-radius:6px;">Item</th>
-                  <th style="padding:10px 12px;text-align:center;">Qty</th>
-                  <th style="padding:10px 12px;border-top-right-radius:6px;text-align:right;">Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${itemsHtml}
-              </tbody>
-            </table>
-            <p style="color:#6b7280;">Login to your seller dashboard to process this order.</p>
-          </div>
-        `;
+        const itemCount = sellerItems.reduce((sum, item) => sum + item.quantity, 0);
+        const sellerTotal = sellerItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
+        // Create database notification for seller
         try {
-          await sendEmail({
-            to: sellerDoc.email,
-            subject: `New order ${order.orderNumber} received`,
-            html,
+          await createNotification(sellerDoc._id, {
+            title: 'New Order Received',
+            message: `You have a new order ${order.orderNumber} from ${buyerName}. ${itemCount} item(s) worth ${getCurrencySymbol(currency)}${sellerTotal.toFixed(2)}`,
+            type: 'order',
+            link: `/seller/orders/${order._id}`,
+            data: {
+              orderId: order._id,
+              orderNumber: order.orderNumber,
+              itemCount,
+              totalAmount: sellerTotal,
+            },
+            priority: 'high',
           });
-        } catch (sellerEmailError) {
-          console.warn('[Order] Failed to send seller notification email', sellerEmailError);
+          console.log(`[Order] Notification created for seller: ${sellerDoc._id}`);
+        } catch (notificationError) {
+          console.warn('[Order] Failed to create seller notification', notificationError);
+        }
+
+        // Send email notification
+        if (sellerDoc.email) {
+          const itemsHtml = buildSellerItemsHtml(sellerItems, currency);
+          const html = `
+            <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:640px;margin:0 auto;color:#111827;">
+              <h2 style="color:#111827;">New order received</h2>
+              <p>Hi ${sellerDoc.firstName || 'Seller'},</p>
+              <p>You have a new order <strong>${order.orderNumber}</strong> from <strong>${buyerName}</strong>.</p>
+              <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+                <thead>
+                  <tr style="background:#111827;color:#fff;text-align:left;">
+                    <th style="padding:10px 12px;border-top-left-radius:6px;">Item</th>
+                    <th style="padding:10px 12px;text-align:center;">Qty</th>
+                    <th style="padding:10px 12px;border-top-right-radius:6px;text-align:right;">Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemsHtml}
+                </tbody>
+              </table>
+              <p style="color:#6b7280;">Login to your seller dashboard to process this order.</p>
+            </div>
+          `;
+
+          try {
+            await sendEmail({
+              to: sellerDoc.email,
+              subject: `New order ${order.orderNumber} received`,
+              html,
+            });
+          } catch (sellerEmailError) {
+            console.warn('[Order] Failed to send seller notification email', sellerEmailError);
+          }
         }
       })
     );
@@ -428,6 +455,7 @@ const createOrder = async (req, res, next) => {
     const orderData = {
       orderNumber,
       orderItems,
+      items: orderItems,
       shippingAddress: mappedAddress,
       billingAddress: mappedAddress,
       itemsPrice: subtotal,
@@ -460,6 +488,7 @@ const createOrder = async (req, res, next) => {
     }
 
     const order = await Order.create(orderData);
+    await Order.updateOne({ _id: order._id }, { $set: { items: orderItems } });
     console.log(`[Order] Order created successfully: ${order._id}, Order Number: ${order.orderNumber}`);
 
     for (const item of cart.items) {

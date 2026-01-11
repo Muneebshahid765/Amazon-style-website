@@ -63,136 +63,241 @@
 }
 
 .plansWrapper {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
 .plansGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
   margin-bottom: 4rem;
 }
 
 .planCard {
   position: relative;
-  background: white;
-  border: 2px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 2rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #fff;
+  border-radius: 20px;
+  padding: 1.4rem 1.35rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   display: flex;
   flex-direction: column;
+  min-height: auto;
 }
 
 .planCard:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  transform: translateY(-6px);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
   border-color: var(--tier-color);
 }
 
 .planCard.popular {
-  border-color: var(--tier-color);
-  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.15);
-  transform: scale(1.05);
-}
-
-.planCard.popular:hover {
-  transform: scale(1.05) translateY(-8px);
+  border: 2px solid var(--tier-color);
+  box-shadow: 0 18px 40px rgba(102, 126, 234, 0.25);
 }
 
 .popularBadge {
   position: absolute;
-  top: -12px;
-  right: 24px;
+  top: -10px;
+  right: 18px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 50px;
-  font-size: 0.75rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
 }
 
-.planHeader {
+.planTop {
   text-align: center;
-  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.tierPill {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.4px;
+  font-weight: 700;
+  color: #475569;
 }
 
 .planIcon {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 1rem;
-  border-radius: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .planIcon svg {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
 }
 
-.planHeader h3 {
-  font-size: 1.75rem;
+.planTop h3 {
+  font-size: 1.3rem;
   font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 0.5rem;
+  color: #111827;
+  margin: 0;
 }
 
 .planDescription {
-  color: #64748b;
-  font-size: 0.95rem;
-  line-height: 1.5;
+  color: #6b7280;
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
-.planPrice {
+.priceCluster {
   text-align: center;
-  margin-bottom: 2rem;
-  padding-bottom: 2rem;
-  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #eef2ff;
+  padding-bottom: 1rem;
+}
+
+.discountChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  background: rgba(236, 72, 153, 0.12);
+  color: #db2777;
+  letter-spacing: 0.4px;
+  margin-bottom: 0.5rem;
+}
+
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.originalRow {
+  margin-top: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.originalPrice {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  text-decoration: line-through;
+}
+
+.discountDates {
+  font-size: 0.7rem;
+  color: #94a3b8;
 }
 
 .currency {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #64748b;
-  vertical-align: top;
+  font-size: 1.2rem;
+  color: #94a3b8;
 }
 
 .amount {
-  font-size: 4rem;
+  font-size: 3rem;
   font-weight: 800;
-  color: #1e293b;
-  line-height: 1;
+  color: #0f172a;
 }
 
 .period {
-  font-size: 1rem;
-  color: #64748b;
-  font-weight: 500;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.featureList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.featureList li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.featureLabel {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-right: auto;
+}
+
+.featureRow {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 0.5rem;
+}
+
+.featureValue {
+  font-size: 1.1rem;
+  color: #111827;
+  font-weight: 700;
+}
+
+.extrasBlock {
+  margin-bottom: 1.25rem;
+}
+
+.extrasBlock h4 {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  color: #94a3b8;
+  letter-spacing: 0.4px;
+  margin-bottom: 0.6rem;
+}
+
+.extraBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.extraBadge {
+  padding: 0.3rem 0.75rem;
+  background: rgba(102, 126, 234, 0.12);
+  color: #4c1d95;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
 .selectButton {
   width: 100%;
-  padding: 1rem 2rem;
-  border: 2px solid #e2e8f0;
-  background: white;
-  color: #1e293b;
-  border-radius: 12px;
-  font-size: 1rem;
+  padding: 0.7rem 1.4rem;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #0f172a;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: 2rem;
+  transition: all 0.2s ease;
+  margin-top: auto;
 }
 
 .selectButton:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  transform: translateY(-2px);
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  transform: translateY(-1px);
 }
 
 .selectButtonPrimary {
@@ -207,42 +312,10 @@
   box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
 }
 
-.planLimits,
-.planFeatures {
-  margin-bottom: 1.5rem;
-}
-
-.planLimits h4,
-.planFeatures h4 {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 1rem;
-}
-
-.planLimits ul,
-.planFeatures ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.planLimits li,
-.planFeatures li {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 0;
-  color: #475569;
-  font-size: 0.95rem;
-}
-
 .checkIcon {
-  width: 20px;
-  height: 20px;
-  color: #10b981;
+  width: 18px;
+  height: 18px;
+  color: #22c55e;
   flex-shrink: 0;
 }
 

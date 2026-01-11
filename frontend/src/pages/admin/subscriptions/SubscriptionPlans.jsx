@@ -28,6 +28,44 @@ import styles from './SubscriptionPlans.module.css';
 const planStatusOptions = ['inactive', 'trial', 'active', 'grace', 'expired', 'cancelled'];
 const tierOptions = ['free', 'starter', 'growth', 'pro', 'enterprise'];
 
+const defaultDiscountState = {
+  isActive: false,
+  type: 'percentage',
+  value: 0,
+  label: '',
+  startsAt: '',
+  endsAt: '',
+  minPrice: 0,
+};
+
+const mapPlanDiscountToState = (plan) => ({
+  isActive: plan?.discount?.isActive || false,
+  type: plan?.discount?.type || 'percentage',
+  value: plan?.discount?.value ?? 0,
+  label: plan?.discount?.label || '',
+  startsAt: plan?.discount?.startsAt ? plan.discount.startsAt.slice(0, 10) : '',
+  endsAt: plan?.discount?.endsAt ? plan.discount.endsAt.slice(0, 10) : '',
+  minPrice: plan?.discount?.minPrice ?? 0,
+});
+
+const calculateDiscountedPrice = (price, discount) => {
+  if (!discount?.isActive || !discount.value) return price;
+  const now = new Date();
+  if (discount.startsAt && new Date(discount.startsAt) > now) return price;
+  if (discount.endsAt && new Date(discount.endsAt) < now) return price;
+
+  let finalPrice =
+    discount.type === 'flat'
+      ? price - Number(discount.value || 0)
+      : price - (price * Number(discount.value || 0)) / 100;
+
+  if (discount.minPrice) {
+    finalPrice = Math.max(finalPrice, Number(discount.minPrice));
+  }
+
+  return Number(finalPrice.toFixed(2));
+};
+
 const SubscriptionPlans = () => {
   const dispatch = useDispatch();
   const {
@@ -55,6 +93,7 @@ const SubscriptionPlans = () => {
     features: [],
     badges: [],
     highlightColor: '#0ea5e9',
+    discount: defaultDiscountState,
   });
   const [featureInput, setFeatureInput] = useState('');
   const [userFilters, setUserFilters] = useState({
@@ -102,6 +141,7 @@ const SubscriptionPlans = () => {
         features: plan.features || [],
         badges: plan.badges || [],
         highlightColor: plan.highlightColor || '#0ea5e9',
+        discount: mapPlanDiscountToState(plan),
       });
     } else {
       setEditingPlan(null);
@@ -121,6 +161,7 @@ const SubscriptionPlans = () => {
         features: [],
         badges: [],
         highlightColor: '#0ea5e9',
+        discount: defaultDiscountState,
       });
     }
     setShowModal(true);
@@ -137,6 +178,21 @@ const SubscriptionPlans = () => {
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const handleDiscountChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      discount: {
+        ...prev.discount,
+        [name]: type === 'checkbox'
+          ? checked
+          : name === 'value' || name === 'minPrice'
+          ? Number(value)
+          : value,
+      },
     }));
   };
 
@@ -386,9 +442,26 @@ const SubscriptionPlans = () => {
                       <p className={styles.planDescription}>{plan.description}</p>
                       <div className={styles.planPrice}>
                         <FiDollarSign />
-                        <span className={styles.price}>{plan.priceMonthly}</span>
+                        <span className={styles.price}>
+                          {calculateDiscountedPrice(plan.priceMonthly, plan.discount)}
+                        </span>
                         <span className={styles.period}>/month</span>
                       </div>
+                      {plan.discount?.isActive && plan.discount?.value > 0 && (
+                        <div className={styles.discountMeta}>
+                          <span className={styles.originalPrice}>${plan.priceMonthly.toFixed(2)}</span>
+                          <span className={styles.discountLabel}>
+                            {plan.discount.label || (plan.discount.type === 'flat'
+                              ? `Save $${plan.discount.value}`
+                              : `Save ${plan.discount.value}%`)}
+                          </span>
+                          {plan.discount.startsAt && plan.discount.endsAt && (
+                            <span className={styles.discountDates}>
+                              {plan.discount.startsAt.slice(0, 10)} - {plan.discount.endsAt.slice(0, 10)}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className={styles.planLimits}>
@@ -697,6 +770,89 @@ const SubscriptionPlans = () => {
                       required
                     />
                   </div>
+              </div>
+
+              <div className={styles.formSection}>
+                <div className={styles.sectionHeader}>
+                  <h3>Plan Discount</h3>
+                  <p>Optional promotional pricing for this plan</p>
+                </div>
+                <div className={styles.discountToggle}>
+                  <label className={styles.switch}>
+                    <input
+                      type="checkbox"
+                      name="isActive"
+                      checked={formData.discount.isActive}
+                      onChange={handleDiscountChange}
+                    />
+                    <span className={styles.slider}></span>
+                  </label>
+                  <span>{formData.discount.isActive ? 'Discount Active' : 'No Active Discount'}</span>
+                </div>
+                {formData.discount.isActive && (
+                  <div className={styles.discountGrid}>
+                    <div className={styles.formGroup}>
+                      <label>Discount Type</label>
+                      <select
+                        name="type"
+                        value={formData.discount.type}
+                        onChange={handleDiscountChange}
+                      >
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="flat">Flat Amount ($)</option>
+                      </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Discount Value</label>
+                      <input
+                        type="number"
+                        name="value"
+                        min="0"
+                        value={formData.discount.value}
+                        onChange={handleDiscountChange}
+                        required
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Minimum Final Price (optional)</label>
+                      <input
+                        type="number"
+                        name="minPrice"
+                        min="0"
+                        value={formData.discount.minPrice}
+                        onChange={handleDiscountChange}
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Discount Label</label>
+                      <input
+                        type="text"
+                        name="label"
+                        value={formData.discount.label}
+                        onChange={handleDiscountChange}
+                        placeholder="e.g. New Year Offer"
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Starts At</label>
+                      <input
+                        type="date"
+                        name="startsAt"
+                        value={formData.discount.startsAt}
+                        onChange={handleDiscountChange}
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Ends At</label>
+                      <input
+                        type="date"
+                        name="endsAt"
+                        value={formData.discount.endsAt}
+                        onChange={handleDiscountChange}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className={styles.limitsSection}>

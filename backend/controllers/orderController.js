@@ -9,7 +9,15 @@ const getMyOrders = async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const query = { user: req.user._id };
+    // Support both logged-in users and guest users
+    const query = {};
+    if (req.user?._id) {
+      query.user = req.user._id;
+    } else if (req.guestId) {
+      query.guestId = req.guestId;
+    } else {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
 
     if (req.query.status) {
       query.status = req.query.status;
@@ -47,7 +55,14 @@ const getOrderById = async (req, res, next) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    if (order.user._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    // Check authorization for both logged-in users and guests
+    const isOwner = 
+      (req.user?._id && order.user?._id?.toString() === req.user._id.toString()) ||
+      (req.guestId && order.guestId === req.guestId);
+    
+    const isAdmin = req.user?.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
       return res.status(403).json({ message: 'Not authorized' });
     }
 

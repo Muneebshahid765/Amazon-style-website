@@ -40,4 +40,15 @@ const checkAccountStatus = (req, res, next) => {
   next();
 };
 
-export { protect, restrictTo, ensureAdminAccess, checkAccountStatus };
+const optionalAuth = (req, res, next) => {
+  // Allow both authenticated users and guests with guestId
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    return next();
+  }
+  if (req.guestId) {
+    return next();
+  }
+  return res.status(401).json({ message: 'Authentication or guest session required' });
+};
+
+export { protect, restrictTo, ensureAdminAccess, checkAccountStatus, optionalAuth };

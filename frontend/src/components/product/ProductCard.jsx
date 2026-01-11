@@ -9,6 +9,13 @@ const ProductCard = ({ product, viewMode = 'grid' }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  const productTitle =
+    product?.name?.trim() ||
+    product?.title?.trim() ||
+    product?.metaTitle?.trim() ||
+    'Product';
+  const productSlug = product?.slug || product?._id || '';
+
   const handleAddToCart = (e) => {
     e.preventDefault();
     dispatch(addToCart({ productId: product._id, quantity: 1 }));
@@ -25,10 +32,10 @@ const ProductCard = ({ product, viewMode = 'grid' }) => {
 
   return (
     <article className={`${styles.card} ${viewMode === 'list' ? styles.listCard : ''}`}>
-      <Link to={`/products/${product.slug || product._id}`} className={styles.imageWrapper}>
+      <Link to={`/products/${productSlug}`} className={styles.imageWrapper}>
         <img
           src={product.images?.[0]?.url || '/placeholder.png'}
-          alt={product.name}
+          alt={productTitle}
           loading="lazy"
           className={styles.productImage}
         />
@@ -55,11 +62,11 @@ const ProductCard = ({ product, viewMode = 'grid' }) => {
       </Link>
 
       <div className={styles.cardBody}>
-        <Link to={`/products/${product.slug || product._id}`} className={styles.productName}>
-          {product.name}
+        <Link to={`/products/${productSlug}`} className={styles.productName} title={productTitle}>
+          {productTitle}
         </Link>
 
-        {product.rating > 0 && (
+        {product?.rating > 0 && (
           <div className={styles.rating}>
             <span className={styles.stars}>★</span>
             <span>{product.rating.toFixed(1)}</span>

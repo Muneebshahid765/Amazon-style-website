@@ -20,7 +20,7 @@ import {
   listUsers,
 } from '../controllers/userController.js';
 import { getCart, addToCart, updateCartItem, removeFromCart, clearCart } from '../controllers/cartController.js';
-import { protect, restrictTo } from '../middleware/auth.js';
+import { protect, restrictTo, optionalAuth } from '../middleware/auth.js';
 import { ensureGuestIdentity } from '../middleware/guestIdentity.js';
 import { validate } from '../middleware/validation.js';
 import upload from '../config/multer.js';
@@ -84,8 +84,8 @@ router.post('/wishlist/:productId', protect, addToWishlist);
 router.delete('/wishlist/:productId', protect, removeFromWishlist);
 router.get('/wishlist', protect, getWishlist);
 
-router.get('/orders', protect, getUserOrders);
-router.get('/orders/:id', protect, getUserOrderById);
+router.get('/orders', ensureGuestIdentity, optionalAuth, getUserOrders);
+router.get('/orders/:id', ensureGuestIdentity, optionalAuth, getUserOrderById);
 router.get('/transactions', protect, getUserTransactions);
 
 router.get('/', protect, restrictTo('admin'), listUsers);

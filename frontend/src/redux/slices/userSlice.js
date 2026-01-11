@@ -15,6 +15,18 @@ const initialState = {
     totalPages: 1,
     total: 0,
   },
+  transactions: [],
+  transactionsStatus: 'idle',
+  transactionSummary: {
+    totalOrders: 0,
+    totalSpent: 0,
+    averageOrderValue: 0,
+  },
+  transactionsPagination: {
+    currentPage: 1,
+    totalPages: 1,
+    total: 0,
+  },
 };
 
 export const fetchUserProfile = createAsyncThunk('user/fetchProfile', async (_, { rejectWithValue }) => {
@@ -202,6 +214,19 @@ export const fetchOrderDetails = createAsyncThunk('user/fetchOrderDetails', asyn
   }
 });
 
+export const fetchUserTransactions = createAsyncThunk(
+  'user/fetchTransactions',
+  async (filters = {}, { rejectWithValue }) => {
+    try {
+      const params = new URLSearchParams(filters).toString();
+      const { data } = await api.get(`/users/transactions?${params}`);
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch transactions');
+    }
+  }
+);
+
 const userSlice = createSlice({
   name: 'user',
   initialState,
@@ -291,6 +316,22 @@ const userSlice = createSlice({
       })
       .addCase(fetchOrderDetails.fulfilled, (state, action) => {
         state.orderDetails = action.payload;
+      })
+      .addCase(fetchUserTransactions.pending, (state) => {
+        state.transactionsStatus = 'loading';
+      })
+      .addCase(fetchUserTransactions.fulfilled, (state, action) => {
+        state.transactionsStatus = 'succeeded';
+        state.transactions = (action.payload.transactions || []).map((txn) => ({
+          ...txn,
+          paymentDisplayMethod: txn.paymentDisplayMethod || txn.paymentMethod,
+        }));
+        state.transactionsPagination = action.payload.pagination || state.transactionsPagination;
+        state.transactionSummary = action.payload.summary || state.transactionSummary;
+      })
+      .addCase(fetchUserTransactions.rejected, (state, action) => {
+        state.transactionsStatus = 'failed';
+        state.error = action.payload;
       });
   },
 });

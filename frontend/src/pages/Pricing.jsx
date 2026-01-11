@@ -1,9 +1,38 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { FiCheck, FiX, FiZap, FiTrendingUp, FiShield } from 'react-icons/fi';
+import { FiCheck, FiZap, FiTrendingUp, FiShield } from 'react-icons/fi';
 import api from '../services/api';
 import styles from './Pricing.module.css';
+
+const normalizeDateOnly = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+const isDiscountActive = (discount = {}) => {
+  if (!discount?.isActive || !discount.value) return false;
+  const today = new Date();
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startDate = normalizeDateOnly(discount.startsAt);
+  const endDate = normalizeDateOnly(discount.endsAt);
+  if (startDate && startDate > todayDate) return false;
+  if (endDate && endDate < todayDate) return false;
+  return true;
+};
+
+const calculateDiscountedPrice = (price, discount) => {
+  if (!isDiscountActive(discount)) return Number(price || 0);
+  let final = discount.type === 'flat'
+    ? Number(price || 0) - Number(discount.value || 0)
+    : Number(price || 0) - (Number(price || 0) * Number(discount.value || 0)) / 100;
+  if (discount.minPrice) {
+    final = Math.max(final, Number(discount.minPrice));
+  }
+  return Number(final.toFixed(2));
+};
 
 const Pricing = () => {
   const navigate = useNavigate();
@@ -11,7 +40,7 @@ const Pricing = () => {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [billingCycle, setBillingCycle] = useState('monthly');
+  const [billingCycle] = useState('monthly');
 
   useEffect(() => {
     fetchPlans();
@@ -92,6 +121,8 @@ const Pricing = () => {
           {plans.map((plan) => {
             const Icon = getTierIcon(plan.tier);
             const isPopular = plan.tier === 'growth' || plan.tier === 'pro';
+            const discountedPrice = calculateDiscountedPrice(plan.priceMonthly, plan.discount);
+            const showDiscount = isDiscountActive(plan.discount) && discountedPrice !== plan.priceMonthly;
             
             return (
               <div
@@ -100,8 +131,9 @@ const Pricing = () => {
                 style={{ '--tier-color': getTierColor(plan.tier) }}
               >
                 {isPopular && <div className={styles.popularBadge}>Most Popular</div>}
-                
-                <div className={styles.planHeader}>
+
+                <div className={styles.planTop}>
+                  <div className={styles.tierPill}>{plan.tier}</div>
                   <div className={styles.planIcon} style={{ backgroundColor: `${getTierColor(plan.tier)}15` }}>
                     <Icon style={{ color: getTierColor(plan.tier) }} />
                   </div>
@@ -109,55 +141,83 @@ const Pricing = () => {
                   <p className={styles.planDescription}>{plan.description}</p>
                 </div>
 
-                <div className={styles.planPrice}>
-                  <span className={styles.currency}>$</span>
-                  <span className={styles.amount}>{plan.priceMonthly}</span>
-                  <span className={styles.period}>/month</span>
+                <div className={styles.priceCluster}>
+                  {showDiscount && (
+                    <span className={styles.discountChip}>
+                      {plan.discount?.label ||
+                        (plan.discount?.type === 'flat'
+                          ? `-$${Number(plan.discount.value).toFixed(0)}`
+                          : `-${plan.discount?.value}%`)}
+                    </span>
+                  )}
+                  <div className={styles.priceRow}>
+                    <span className={styles.currency}>$</span>
+                    <span className={styles.amount}>{discountedPrice}</span>
+                    <span className={styles.period}>/month</span>
+                  </div>
+                  {showDiscount && (
+                    <div className={styles.originalRow}>
+                      <span className={styles.originalPrice}>${Number(plan.priceMonthly).toFixed(2)}</span>
+                      {plan.discount?.startsAt && plan.discount?.endsAt && (
+                        <span className={styles.discountDates}>
+                          {plan.discount.startsAt.slice(0, 10)} – {plan.discount.endsAt.slice(0, 10)}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
+
+                <ul className={styles.featureList}>
+                  <li>
+                    <FiCheck className={styles.checkIcon} />
+                    <div className={styles.featureRow}>
+                      <span className={styles.featureLabel}>Active Products</span>
+                      <strong className={styles.featureValue}>{plan.limits.maxActiveProducts}</strong>
+                    </div>
+                  </li>
+                  <li>
+                    <FiCheck className={styles.checkIcon} />
+                    <div className={styles.featureRow}>
+                      <span className={styles.featureLabel}>Uploads / Month</span>
+                      <strong className={styles.featureValue}>{plan.limits.uploadsPerCycle}</strong>
+                    </div>
+                  </li>
+                  <li>
+                    <FiCheck className={styles.checkIcon} />
+                    <div className={styles.featureRow}>
+                      <span className={styles.featureLabel}>Edits / Month</span>
+                      <strong className={styles.featureValue}>{plan.limits.editsPerCycle}</strong>
+                    </div>
+                  </li>
+                  <li>
+                    <FiCheck className={styles.checkIcon} />
+                    <div className={styles.featureRow}>
+                      <span className={styles.featureLabel}>Deletes / Month</span>
+                      <strong className={styles.featureValue}>{plan.limits.deletesPerCycle}</strong>
+                    </div>
+                  </li>
+                </ul>
+
+                {plan.features?.length > 0 && (
+                  <div className={styles.extrasBlock}>
+                    <h4>Plan Extras</h4>
+                    <div className={styles.extraBadges}>
+                      {plan.features.map((feature, idx) => (
+                        <span key={idx} className={styles.extraBadge}>
+                          {feature}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <button
                   className={`${styles.selectButton} ${isPopular ? styles.selectButtonPrimary : ''}`}
                   onClick={() => handleSelectPlan(plan)}
                   style={isPopular ? { backgroundColor: getTierColor(plan.tier) } : {}}
                 >
-                  {plan.priceMonthly === 0 ? 'Start Free' : 'Get Started'}
+                  {plan.priceMonthly === 0 ? 'Start Free' : 'Buy Now'}
                 </button>
-
-                <div className={styles.planLimits}>
-                  <h4>What's included:</h4>
-                  <ul>
-                    <li>
-                      <FiCheck className={styles.checkIcon} />
-                      <span><strong>{plan.limits.maxActiveProducts}</strong> Active Products</span>
-                    </li>
-                    <li>
-                      <FiCheck className={styles.checkIcon} />
-                      <span><strong>{plan.limits.uploadsPerCycle}</strong> Uploads per month</span>
-                    </li>
-                    <li>
-                      <FiCheck className={styles.checkIcon} />
-                      <span><strong>{plan.limits.editsPerCycle}</strong> Edits per month</span>
-                    </li>
-                    <li>
-                      <FiCheck className={styles.checkIcon} />
-                      <span><strong>{plan.limits.deletesPerCycle}</strong> Deletes per month</span>
-                    </li>
-                  </ul>
-                </div>
-
-                {plan.features && plan.features.length > 0 && (
-                  <div className={styles.planFeatures}>
-                    <h4>Features:</h4>
-                    <ul>
-                      {plan.features.map((feature, idx) => (
-                        <li key={idx}>
-                          <FiCheck className={styles.checkIcon} />
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
             );
           })}

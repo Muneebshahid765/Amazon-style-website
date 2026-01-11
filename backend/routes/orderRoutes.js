@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect, restrictTo } from '../middleware/auth.js';
+import { protect, restrictTo, optionalAuth } from '../middleware/auth.js';
 import {
   getMyOrders,
   getOrderById,
@@ -16,8 +16,8 @@ import { ensureGuestIdentity } from '../middleware/guestIdentity.js';
 
 const router = express.Router();
 
-router.get('/', protect, getMyOrders);
-router.get('/:id', protect, getOrderById);
+router.get('/', ensureGuestIdentity, optionalAuth, getMyOrders);
+router.get('/:id', ensureGuestIdentity, optionalAuth, getOrderById);
 router.get('/:id/invoice', ensureGuestIdentity, getOrderInvoice);
 router.put('/:id/cancel', protect, cancelOrder);
 router.post('/:id/return', protect, requestReturn);

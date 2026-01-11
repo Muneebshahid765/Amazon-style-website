@@ -234,20 +234,36 @@ const OrderHistory = () => {
               <div className={styles.section}>
                 <h3>Items</h3>
                 <div className={styles.detailItems}>
-                  {orderDetails.items.map((item) => (
-                    <div key={item._id} className={styles.detailItem}>
-                      <img
-                        src={item.product?.images?.[0]?.url || '/placeholder.png'}
-                        alt={item.product?.name}
-                        className={styles.detailItemImage}
-                      />
-                      <div className={styles.detailItemInfo}>
-                        <p className={styles.detailItemName}>{item.product?.name}</p>
-                        <p className={styles.detailItemPrice}>Rs. {item.price} × {item.quantity}</p>
+                  {orderDetails.items.map((item) => {
+                    const title =
+                      item.product?.name ||
+                      item.product?.title ||
+                      item.title ||
+                      'Item';
+                    const image =
+                      item.product?.images?.[0]?.url ||
+                      item.image ||
+                      '/placeholder.png';
+                    return (
+                      <div key={item._id} className={styles.detailItem}>
+                        <img
+                          src={image}
+                          alt={title}
+                          className={styles.detailItemImage}
+                        />
+                        <div className={styles.detailItemInfo}>
+                          <p className={styles.detailItemName}>{title}</p>
+                          <p className={styles.detailItemPrice}>
+                            Rs. {item.price} × {item.quantity}
+                            {item.sku ? ` · SKU: ${item.sku}` : ''}
+                          </p>
+                        </div>
+                        <strong className={styles.detailItemTotal}>
+                          Rs. {(item.price * item.quantity).toLocaleString()}
+                        </strong>
                       </div>
-                      <strong className={styles.detailItemTotal}>Rs. {item.price * item.quantity}</strong>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -295,7 +311,15 @@ const OrderHistory = () => {
                   </div>
                   <div className={styles.summaryRow}>
                     <span>Payment Method:</span>
-                    <span>{orderDetails.paymentMethod}</span>
+                    <span>
+                      {orderDetails.paymentDisplayMethod ||
+                        orderDetails.paymentMethod ||
+                        (orderDetails.paymentCardBrand
+                          ? `${orderDetails.paymentCardBrand.toUpperCase()}${
+                              orderDetails.paymentCardLast4 ? ` •••• ${orderDetails.paymentCardLast4}` : ''
+                            }`
+                          : 'N/A')}
+                    </span>
                   </div>
                   <div className={styles.summaryRow}>
                     <span>Payment Status:</span>

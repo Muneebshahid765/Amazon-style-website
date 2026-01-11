@@ -105,6 +105,33 @@ const orderSchema = new Schema(
   }
 );
 
+// Virtual fields for backward compatibility with frontend
+orderSchema.virtual('items').get(function () {
+  return this.orderItems;
+});
+
+orderSchema.virtual('totalAmount').get(function () {
+  return this.totalPrice;
+});
+
+orderSchema.virtual('paymentDisplayMethod').get(function () {
+  if (this.paymentCardBrand) {
+    const brand = this.paymentCardBrand.toUpperCase();
+    const last4 = this.paymentCardLast4 ? ` •••• ${this.paymentCardLast4}` : '';
+    return `${brand}${last4}`;
+  }
+  if (this.paymentMethod) {
+    return this.paymentMethod === 'stripe'
+      ? 'Stripe'
+      : this.paymentMethod.toUpperCase();
+  }
+  return 'N/A';
+});
+
+// Ensure virtuals are included in JSON and Object outputs
+orderSchema.set('toJSON', { virtuals: true });
+orderSchema.set('toObject', { virtuals: true });
+
 orderSchema.index({ user: 1, createdAt: -1 }, { sparse: true });
 orderSchema.index({ guestId: 1, createdAt: -1 }, { sparse: true });
 orderSchema.index({ status: 1 });

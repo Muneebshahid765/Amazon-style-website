@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
-import { setActiveMode } from '../../redux/slices/authSlice';
+import { useSelector } from 'react-redux';
 import SellerSidebar from './SellerSidebar';
 import SellerHeader from './SellerHeader';
 import styles from './SellerLayout.module.css';
@@ -9,22 +8,21 @@ import styles from './SellerLayout.module.css';
 const SellerLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const navigate = useNavigate();
-  const dispatch = useDispatch();
   const { user, activeMode } = useSelector((state) => state.auth);
 
   useEffect(() => {
     if (!user) return;
     const isSeller = user.role === 'seller' || user.accountType === 'seller';
-    
+
     if (!isSeller) {
       navigate('/dashboard', { replace: true });
       return;
     }
-    
+
     if (activeMode !== 'seller') {
-      dispatch(setActiveMode('seller'));
+      navigate('/dashboard', { replace: true });
     }
-  }, [user, activeMode, navigate, dispatch]);
+  }, [user, activeMode, navigate]);
 
   return (
     <div className={styles.layout}>
