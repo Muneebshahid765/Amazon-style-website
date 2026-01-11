@@ -11,6 +11,7 @@ import Category from '../models/Category.js';
 import Coupon from '../models/Coupon.js';
 import SellerVerification from '../models/SellerVerification.js';
 import User from '../models/User.js';
+import SubscriptionTransaction from '../models/SubscriptionTransaction.js';
 import {
   mapCategoryField,
   parseExistingImages,
@@ -807,16 +808,24 @@ export const getTransactions = async (req, res, next) => {
     const { page = 1, limit = 20, type, startDate, endDate } = req.query;
     const sellerId = req.user._id;
 
-    const matchQuery = { 'orderItems.seller': sellerId, status: { $in: ['processing', 'packed', 'shipped', 'delivered'] } };
-    
+    // Date filter for both queries
+    const dateFilter = {};
     if (startDate || endDate) {
-      matchQuery.createdAt = {};
-      if (startDate) matchQuery.createdAt.$gte = new Date(startDate);
-      if (endDate) matchQuery.createdAt.$lte = new Date(endDate);
+      if (startDate) dateFilter.$gte = new Date(startDate);
+      if (endDate) dateFilter.$lte = new Date(endDate);
     }
 
-    const transactions = await Order.aggregate([
-      { $match: matchQuery },
+    // Order-based transactions (product sales)
+    const orderMatchQuery = { 
+      'orderItems.seller': sellerId, 
+      status: { $in: ['processing', 'packed', 'shipped', 'delivered'] } 
+    };
+    if (Object.keys(dateFilter).length > 0) {
+      orderMatchQuery.createdAt = dateFilter;
+    }
+
+    const orderTransactions = await Order.aggregate([
+      { $match: orderMatchQuery },
       { $unwind: '$orderItems' },
       { $match: { 'orderItems.seller': sellerId } },
       {
@@ -832,22 +841,49 @@ export const getTransactions = async (req, res, next) => {
           type: { $literal: 'sale' },
         },
       },
-      { $sort: { date: -1 } },
-      { $skip: (page - 1) * limit },
-      { $limit: Number(limit) },
     ]);
 
-    const totalCount = await Order.aggregate([
-      { $match: matchQuery },
-      { $unwind: '$orderItems' },
-      { $match: { 'orderItems.seller': sellerId } },
-      { $count: 'total' },
-    ]);
+    // Subscription transactions
+    const subscriptionMatchQuery = { user: sellerId, status: 'succeeded' };
+    if (Object.keys(dateFilter).length > 0) {
+      subscriptionMatchQuery.createdAt = dateFilter;
+    }
+
+    const subscriptionTransactions = await SubscriptionTransaction.find(subscriptionMatchQuery)
+      .populate('plan', 'name tier')
+      .select('amount billingCycle status createdAt plan paymentMethod')
+      .lean();
+
+    // Format subscription transactions
+    const formattedSubscriptionTransactions = subscriptionTransactions.map(sub => ({
+      orderId: sub._id,
+      orderNumber: `SUB-${sub._id.toString().slice(-8).toUpperCase()}`,
+      date: sub.createdAt,
+      productTitle: `${sub.plan?.name || 'Subscription'} Plan (${sub.billingCycle})`,
+      quantity: 1,
+      price: sub.amount,
+      total: sub.amount,
+      status: sub.status,
+      type: 'subscription',
+    }));
+
+    // Combine both transaction types
+    const allTransactions = [...orderTransactions, ...formattedSubscriptionTransactions];
+    
+    // Sort by date descending
+    allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // Apply pagination
+    const total = allTransactions.length;
+    const paginatedTransactions = allTransactions.slice(
+      (page - 1) * limit,
+      page * limit
+    );
 
     res.json({
-      transactions,
-      total: totalCount[0]?.total || 0,
-      totalPages: Math.ceil((totalCount[0]?.total || 0) / limit),
+      transactions: paginatedTransactions,
+      total,
+      totalPages: Math.ceil(total / limit),
       currentPage: Number(page),
     });
   } catch (error) {
