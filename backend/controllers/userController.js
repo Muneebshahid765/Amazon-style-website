@@ -327,6 +327,74 @@ const getUserOrderById = async (req, res, next) => {
   }
 };
 
+const getUserTransactions = async (req, res, next) => {
+  try {
+    const { status, startDate, endDate, page = 1, limit = 20 } = req.query;
+    const matchQuery = { user: req.user._id };
+
+    if (status) {
+      matchQuery.status = status;
+    }
+
+    if (startDate || endDate) {
+      matchQuery.createdAt = {};
+      if (startDate) matchQuery.createdAt.$gte = new Date(startDate);
+      if (endDate) matchQuery.createdAt.$lte = new Date(endDate);
+    }
+
+    const numericLimit = Number(limit) || 20;
+    const skip = (Number(page) - 1) * numericLimit;
+
+    const [orders, total, summaryAgg] = await Promise.all([
+      Order.find(matchQuery)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(numericLimit)
+        .select('orderNumber createdAt totalAmount status paymentMethod items'),
+      Order.countDocuments(matchQuery),
+      Order.aggregate([
+        { $match: matchQuery },
+        {
+          $group: {
+            _id: null,
+            totalSpent: { $sum: '$totalAmount' },
+            totalOrders: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+
+    const transactions = orders.map((order) => ({
+      id: order._id,
+      orderNumber: order.orderNumber,
+      date: order.createdAt,
+      total: order.totalAmount,
+      status: order.status,
+      paymentMethod: order.paymentMethod,
+      itemsCount: order.items?.length || 0,
+    }));
+
+    const totalOrders = summaryAgg[0]?.totalOrders || 0;
+    const totalSpent = summaryAgg[0]?.totalSpent || 0;
+
+    res.json({
+      transactions,
+      pagination: {
+        total,
+        totalPages: Math.ceil(total / numericLimit) || 1,
+        currentPage: Number(page),
+      },
+      summary: {
+        totalOrders,
+        totalSpent,
+        averageOrderValue: totalOrders ? totalSpent / totalOrders : 0,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const listUsers = async (req, res, next) => {
   try {
     const users = await User.find().select('-password');
@@ -352,5 +420,6 @@ export {
   getWishlist,
   getUserOrders,
   getUserOrderById,
+  getUserTransactions,
   listUsers,
 };

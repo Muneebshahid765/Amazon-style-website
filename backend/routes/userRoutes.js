@@ -16,6 +16,7 @@ import {
   getWishlist,
   getUserOrders,
   getUserOrderById,
+  getUserTransactions,
   listUsers,
 } from '../controllers/userController.js';
 import { getCart, addToCart, updateCartItem, removeFromCart, clearCart } from '../controllers/cartController.js';
@@ -85,6 +86,7 @@ router.get('/wishlist', protect, getWishlist);
 
 router.get('/orders', protect, getUserOrders);
 router.get('/orders/:id', protect, getUserOrderById);
+router.get('/transactions', protect, getUserTransactions);
 
 router.get('/', protect, restrictTo('admin'), listUsers);
 

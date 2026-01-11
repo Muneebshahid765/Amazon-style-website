@@ -808,83 +808,85 @@ export const getTransactions = async (req, res, next) => {
     const { page = 1, limit = 20, type, startDate, endDate } = req.query;
     const sellerId = req.user._id;
 
-    // Date filter for both queries
     const dateFilter = {};
-    if (startDate || endDate) {
-      if (startDate) dateFilter.$gte = new Date(startDate);
-      if (endDate) dateFilter.$lte = new Date(endDate);
-    }
+    if (startDate) dateFilter.$gte = new Date(startDate);
+    if (endDate) dateFilter.$lte = new Date(endDate);
+    const hasDateFilter = Object.keys(dateFilter).length > 0;
 
-    // Order-based transactions (product sales)
-    const orderMatchQuery = { 
-      'orderItems.seller': sellerId, 
-      status: { $in: ['processing', 'packed', 'shipped', 'delivered'] } 
-    };
-    if (Object.keys(dateFilter).length > 0) {
-      orderMatchQuery.createdAt = dateFilter;
-    }
+    const subscriptionQuery = { user: sellerId, status: 'succeeded' };
+    if (hasDateFilter) subscriptionQuery.createdAt = dateFilter;
 
-    const orderTransactions = await Order.aggregate([
-      { $match: orderMatchQuery },
-      { $unwind: '$orderItems' },
-      { $match: { 'orderItems.seller': sellerId } },
-      {
-        $project: {
-          orderId: '$_id',
-          orderNumber: 1,
-          date: '$createdAt',
-          productTitle: '$orderItems.title',
-          quantity: '$orderItems.quantity',
-          price: '$orderItems.price',
-          total: { $multiply: ['$orderItems.price', '$orderItems.quantity'] },
-          status: '$orderItems.itemStatus',
-          type: { $literal: 'sale' },
-        },
-      },
+    const payoutQuery = { seller: sellerId };
+    if (hasDateFilter) payoutQuery.createdAt = dateFilter;
+
+    const [subscriptionTransactions, payoutTransactions] = await Promise.all([
+      SubscriptionTransaction.find(subscriptionQuery)
+        .populate('plan', 'name tier')
+        .select('amount billingCycle status createdAt plan paymentMethod')
+        .lean(),
+      Payout.find(payoutQuery)
+        .select('amount status method createdAt transactionId notes')
+        .lean(),
     ]);
 
-    // Subscription transactions
-    const subscriptionMatchQuery = { user: sellerId, status: 'succeeded' };
-    if (Object.keys(dateFilter).length > 0) {
-      subscriptionMatchQuery.createdAt = dateFilter;
-    }
-
-    const subscriptionTransactions = await SubscriptionTransaction.find(subscriptionMatchQuery)
-      .populate('plan', 'name tier')
-      .select('amount billingCycle status createdAt plan paymentMethod')
-      .lean();
-
-    // Format subscription transactions
-    const formattedSubscriptionTransactions = subscriptionTransactions.map(sub => ({
-      orderId: sub._id,
-      orderNumber: `SUB-${sub._id.toString().slice(-8).toUpperCase()}`,
+    const formattedSubscriptionTransactions = subscriptionTransactions.map((sub) => ({
+      id: sub._id,
+      reference: `SUB-${sub._id.toString().slice(-8).toUpperCase()}`,
+      description: `${sub.plan?.name || 'Subscription'} Plan (${sub.billingCycle})`,
       date: sub.createdAt,
-      productTitle: `${sub.plan?.name || 'Subscription'} Plan (${sub.billingCycle})`,
-      quantity: 1,
-      price: sub.amount,
-      total: sub.amount,
+      amount: sub.amount,
+      direction: 'debit',
+      method: sub.paymentMethod || 'card',
       status: sub.status,
       type: 'subscription',
     }));
 
-    // Combine both transaction types
-    const allTransactions = [...orderTransactions, ...formattedSubscriptionTransactions];
-    
-    // Sort by date descending
+    const formattedPayoutTransactions = payoutTransactions.map((payout) => ({
+      id: payout._id,
+      reference: payout.transactionId || `PAY-${payout._id.toString().slice(-8).toUpperCase()}`,
+      description: `Payout via ${payout.method?.replace('_', ' ') || 'bank transfer'}`,
+      date: payout.createdAt,
+      amount: payout.amount,
+      direction: 'credit',
+      method: payout.method,
+      status: payout.status,
+      type: 'payout',
+    }));
+
+    let allTransactions = [...formattedSubscriptionTransactions, ...formattedPayoutTransactions];
+
+    if (type) {
+      if (['subscription', 'payout'].includes(type)) {
+        allTransactions = allTransactions.filter((txn) => txn.type === type);
+      } else if (['credit', 'debit'].includes(type)) {
+        allTransactions = allTransactions.filter((txn) => txn.direction === type);
+      }
+    }
+
     allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    // Apply pagination
     const total = allTransactions.length;
-    const paginatedTransactions = allTransactions.slice(
-      (page - 1) * limit,
-      page * limit
-    );
+    const numericLimit = Number(limit);
+    const paginatedTransactions = allTransactions.slice((page - 1) * numericLimit, page * numericLimit);
+
+    const totalDebits = allTransactions
+      .filter((txn) => txn.direction === 'debit')
+      .reduce((sum, txn) => sum + (txn.amount || 0), 0);
+
+    const totalCredits = allTransactions
+      .filter((txn) => txn.direction === 'credit')
+      .reduce((sum, txn) => sum + (txn.amount || 0), 0);
 
     res.json({
       transactions: paginatedTransactions,
       total,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / numericLimit),
       currentPage: Number(page),
+      summary: {
+        totalDebits,
+        totalCredits,
+        net: totalCredits - totalDebits,
+      },
     });
   } catch (error) {
     next(error);
