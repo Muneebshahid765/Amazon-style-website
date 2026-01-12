@@ -1,6 +1,24 @@
 import SubscriptionPlan from '../models/SubscriptionPlan.js';
 import User from '../models/User.js';
 
+const defaultFeatureAccess = {
+  bulkOperations: false,
+  advancedAnalytics: false,
+  prioritySupport: false,
+  customBranding: false,
+  apiAccess: false,
+  multipleStores: false,
+  advancedReporting: false,
+  inventoryForecasting: false,
+  automatedMarketing: false,
+  dedicatedAccountManager: false,
+  whitelabelOptions: false,
+  customIntegrations: false,
+  aiPoweredInsights: false,
+  unlimitedTeamMembers: false,
+  advancedSecurity: false,
+};
+
 /**
  * Get user's current subscription plan with limits
  */
@@ -28,6 +46,7 @@ export const getUserPlanWithLimits = async (userId) => {
         deletesUsed: user.planUsage?.deletesUsed || 0,
       },
       planStatus: user.planStatus || 'inactive',
+      featureAccess: { ...defaultFeatureAccess },
     };
   }
 
@@ -36,6 +55,7 @@ export const getUserPlanWithLimits = async (userId) => {
     planName: user.currentPlan.name,
     tier: user.currentPlan.tier,
     limits: user.currentPlan.limits,
+    featureAccess: user.currentPlan.featureAccess || { ...defaultFeatureAccess },
     usage: {
       uploadsUsed: user.planUsage?.uploadsUsed || 0,
       editsUsed: user.planUsage?.editsUsed || 0,

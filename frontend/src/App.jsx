@@ -43,6 +43,9 @@ import SellerStoreSettings from './pages/seller/store/StoreSettings.jsx';
 import SellerReviews from './pages/seller/reviews/Reviews.jsx';
 import SellerAnalytics from './pages/seller/analytics/Analytics.jsx';
 import SellerSubscriptionUpgrade from './pages/seller/SubscriptionUpgrade.jsx';
+import BulkOperations from './pages/seller/products/BulkOperations.jsx';
+import AdvancedAnalytics from './pages/seller/analytics/AdvancedAnalytics.jsx';
+import PrioritySupport from './pages/seller/support/PrioritySupport.jsx';
 import UserDashboard from './pages/UserDashboard.jsx';
 import Wishlist from './pages/Wishlist.jsx';
 import Login from './pages/auth/Login.jsx';
@@ -128,6 +131,7 @@ function App() {
           <Route path="products/categories" element={<SellerProductList />} />
           <Route path="products/inventory" element={<SellerProductList />} />
           <Route path="products/bulk-upload" element={<SellerAddProduct />} />
+          <Route path="products/bulk-operations" element={<BulkOperations />} />
           <Route path="orders" element={<SellerOrderList />} />
           <Route path="orders/pending" element={<SellerOrderList />} />
           <Route path="orders/processing" element={<SellerOrderList />} />
@@ -143,6 +147,8 @@ function App() {
           <Route path="verification" element={<SellerVerification />} />
           <Route path="reviews" element={<SellerReviews />} />
           <Route path="analytics" element={<SellerAnalytics />} />
+          <Route path="analytics/advanced" element={<AdvancedAnalytics />} />
+          <Route path="support/priority" element={<PrioritySupport />} />
           <Route path="marketing/promotions" element={<SellerAnalytics />} />
           <Route path="marketing/discounts" element={<SellerAnalytics />} />
           <Route path="marketing/coupons" element={<SellerCoupons />} />

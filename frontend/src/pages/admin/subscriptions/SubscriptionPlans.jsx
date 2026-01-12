@@ -27,11 +27,43 @@ import {
   FiPercent,
   FiLayers,
   FiAlertTriangle,
+  FiZap,
+  FiTrendingUp,
+  FiShield,
+  FiCode,
+  FiShoppingBag,
+  FiFileText,
+  FiActivity,
+  FiMail,
+  FiUser,
+  FiEyeOff,
+  FiLink,
+  FiHeadphones,
+  FiEdit3,
 } from 'react-icons/fi';
 import styles from './SubscriptionPlans.module.css';
+import featureStyles from './SubscriptionPlansFeatureAccess.module.css';
 
 const planStatusOptions = ['inactive', 'trial', 'active', 'grace', 'expired', 'cancelled'];
 const tierOptions = ['free', 'starter', 'growth', 'pro', 'enterprise'];
+
+const FEATURE_CATALOG = {
+  bulkOperations: { label: 'Bulk Operations', icon: FiLayers, category: 'Productivity' },
+  advancedAnalytics: { label: 'Advanced Analytics', icon: FiTrendingUp, category: 'Analytics' },
+  prioritySupport: { label: 'Priority Support', icon: FiHeadphones, category: 'Support' },
+  customBranding: { label: 'Custom Branding', icon: FiEdit3, category: 'Branding' },
+  apiAccess: { label: 'API Access', icon: FiCode, category: 'Integration' },
+  multipleStores: { label: 'Multiple Stores', icon: FiShoppingBag, category: 'Scaling' },
+  advancedReporting: { label: 'Advanced Reporting', icon: FiFileText, category: 'Analytics' },
+  inventoryForecasting: { label: 'Inventory Forecasting', icon: FiActivity, category: 'Analytics' },
+  automatedMarketing: { label: 'Automated Marketing', icon: FiMail, category: 'Marketing' },
+  dedicatedAccountManager: { label: 'Dedicated Account Manager', icon: FiUser, category: 'Support' },
+  whitelabelOptions: { label: 'White-label Options', icon: FiEyeOff, category: 'Branding' },
+  customIntegrations: { label: 'Custom Integrations', icon: FiLink, category: 'Integration' },
+  aiPoweredInsights: { label: 'AI-Powered Insights', icon: FiZap, category: 'Analytics' },
+  unlimitedTeamMembers: { label: 'Unlimited Team Members', icon: FiUsers, category: 'Scaling' },
+  advancedSecurity: { label: 'Advanced Security', icon: FiShield, category: 'Security' },
+};
 
 const defaultDiscountState = {
   isActive: false,
@@ -100,6 +132,23 @@ const SubscriptionPlans = () => {
       uploadsPerCycle: 10,
       editsPerCycle: 30,
       deletesPerCycle: 10,
+    },
+    featureAccess: {
+      bulkOperations: false,
+      advancedAnalytics: false,
+      prioritySupport: false,
+      customBranding: false,
+      apiAccess: false,
+      multipleStores: false,
+      advancedReporting: false,
+      inventoryForecasting: false,
+      automatedMarketing: false,
+      dedicatedAccountManager: false,
+      whitelabelOptions: false,
+      customIntegrations: false,
+      aiPoweredInsights: false,
+      unlimitedTeamMembers: false,
+      advancedSecurity: false,
     },
     features: [],
     badges: [],
@@ -274,6 +323,23 @@ const SubscriptionPlans = () => {
         durationDays: plan.durationDays,
         isActive: plan.isActive,
         limits: plan.limits,
+        featureAccess: plan.featureAccess || {
+          bulkOperations: false,
+          advancedAnalytics: false,
+          prioritySupport: false,
+          customBranding: false,
+          apiAccess: false,
+          multipleStores: false,
+          advancedReporting: false,
+          inventoryForecasting: false,
+          automatedMarketing: false,
+          dedicatedAccountManager: false,
+          whitelabelOptions: false,
+          customIntegrations: false,
+          aiPoweredInsights: false,
+          unlimitedTeamMembers: false,
+          advancedSecurity: false,
+        },
         features: plan.features || [],
         badges: plan.badges || [],
         highlightColor: plan.highlightColor || '#0ea5e9',
@@ -293,6 +359,23 @@ const SubscriptionPlans = () => {
           uploadsPerCycle: 10,
           editsPerCycle: 30,
           deletesPerCycle: 10,
+        },
+        featureAccess: {
+          bulkOperations: false,
+          advancedAnalytics: false,
+          prioritySupport: false,
+          customBranding: false,
+          apiAccess: false,
+          multipleStores: false,
+          advancedReporting: false,
+          inventoryForecasting: false,
+          automatedMarketing: false,
+          dedicatedAccountManager: false,
+          whitelabelOptions: false,
+          customIntegrations: false,
+          aiPoweredInsights: false,
+          unlimitedTeamMembers: false,
+          advancedSecurity: false,
         },
         features: [],
         badges: [],
@@ -339,6 +422,16 @@ const SubscriptionPlans = () => {
       limits: {
         ...prev.limits,
         [name]: parseInt(value, 10) || 0,
+      },
+    }));
+  };
+
+  const handleFeatureAccessChange = (featureKey) => {
+    setFormData((prev) => ({
+      ...prev,
+      featureAccess: {
+        ...prev.featureAccess,
+        [featureKey]: !prev.featureAccess[featureKey],
       },
     }));
   };
@@ -1133,8 +1226,41 @@ const SubscriptionPlans = () => {
                 </div>
               </div>
 
+              <div className={featureStyles.featureAccessSection}>
+                <div className={featureStyles.sectionHeader}>
+                  <h3>Feature Access Control</h3>
+                  <p>Select which premium features are included in this plan</p>
+                </div>
+                <div className={featureStyles.featureAccessGrid}>
+                  {Object.entries(FEATURE_CATALOG).map(([key, feature]) => {
+                    const Icon = feature.icon;
+                    return (
+                      <label key={key} className={featureStyles.featureAccessItem}>
+                        <div className={featureStyles.featureAccessCheckbox}>
+                          <input
+                            type="checkbox"
+                            checked={formData.featureAccess[key] || false}
+                            onChange={() => handleFeatureAccessChange(key)}
+                          />
+                          <span className={featureStyles.checkmark}></span>
+                        </div>
+                        <div className={featureStyles.featureAccessInfo}>
+                          <div className={featureStyles.featureAccessIcon}>
+                            <Icon />
+                          </div>
+                          <div>
+                            <div className={featureStyles.featureAccessLabel}>{feature.label}</div>
+                            <div className={featureStyles.featureAccessCategory}>{feature.category}</div>
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className={styles.featuresSection}>
-                <h3>Features</h3>
+                <h3>Features (Display Text)</h3>
                 <div className={styles.featureInput}>
                   <input
                     type="text"

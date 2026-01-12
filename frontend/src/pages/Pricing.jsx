@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { FiCheck, FiZap, FiTrendingUp, FiShield } from 'react-icons/fi';
+import { toast } from 'react-toastify';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement } from '@stripe/react-stripe-js';
 import api from '../services/api';
+import { fetchSubscriptionStatus } from '../redux/slices/sellerSlice';
+import PlanCheckoutModal from '../components/subscriptions/PlanCheckoutModal.jsx';
 import styles from './Pricing.module.css';
 
 const normalizeDateOnly = (value) => {
@@ -37,17 +42,31 @@ const calculateDiscountedPrice = (price, discount) => {
   return Number(final.toFixed(2));
 };
 
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+
 const Pricing = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { subscriptionStatus } = useSelector((state) => state.seller);
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [billingCycle] = useState('monthly');
+  const [checkoutPlan, setCheckoutPlan] = useState(null);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
 
   useEffect(() => {
     fetchPlans();
   }, []);
+
+  const isSeller = user?.role === 'seller' || user?.accountType === 'seller';
+
+  useEffect(() => {
+    if (isAuthenticated && isSeller) {
+      dispatch(fetchSubscriptionStatus());
+    }
+  }, [dispatch, isAuthenticated, isSeller]);
 
   const fetchPlans = async () => {
     try {
@@ -65,14 +84,65 @@ const Pricing = () => {
       navigate('/register');
       return;
     }
-    
-    const isSeller = user?.role === 'seller' || user?.accountType === 'seller';
+
     if (!isSeller) {
       navigate('/register');
       return;
     }
 
-    navigate('/seller', { state: { selectedPlan: plan } });
+    if (subscriptionStatus?.plan?._id === plan._id) {
+      toast.info('You are already on this plan');
+      return;
+    }
+
+    setCheckoutPlan(plan);
+    setShowCheckout(true);
+  };
+
+  const handleConfirmPurchase = async ({ billingCycle, payment, notes, stripe, elements }) => {
+    if (!checkoutPlan || !stripe || !elements) return;
+    setUpgrading(true);
+    try {
+      const { data: intentData } = await api.post('/subscriptions/payment-intent', {
+        planId: checkoutPlan._id,
+        billingCycle,
+      });
+
+      const cardElement = elements.getElement(CardElement);
+      const { error, paymentIntent } = await stripe.confirmCardPayment(
+        intentData.clientSecret,
+        {
+          payment_method: {
+            card: cardElement,
+            billing_details: {
+              name: payment.fullName,
+              email: payment.email,
+              address: {
+                country: payment.country,
+                line1: payment.address,
+              },
+            },
+          },
+        }
+      );
+
+      if (error) {
+        toast.error(error.message || 'Payment failed');
+        return;
+      }
+
+      if (paymentIntent.status === 'succeeded') {
+        toast.success('Subscription activated successfully!');
+        setCheckoutPlan(null);
+        setShowCheckout(false);
+        dispatch(fetchSubscriptionStatus());
+        fetchPlans();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to process payment');
+    } finally {
+      setUpgrading(false);
+    }
   };
 
   const getTierIcon = (tier) => {
@@ -248,6 +318,18 @@ const Pricing = () => {
           </div>
         </div>
       </div>
+      {showCheckout && (
+        <Elements stripe={stripePromise}>
+          <PlanCheckoutModal
+            isOpen={showCheckout}
+            plan={checkoutPlan}
+            onClose={() => setShowCheckout(false)}
+            onConfirm={handleConfirmPurchase}
+            loading={upgrading}
+            user={user}
+          />
+        </Elements>
+      )}
     </div>
   );
 };

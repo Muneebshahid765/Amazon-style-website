@@ -706,26 +706,174 @@ export const replyToReview = async (req, res, next) => {
 export const getProductAnalytics = async (req, res, next) => {
   try {
     const sellerId = req.user._id;
+    const { period = '30days' } = req.query;
 
-    const analytics = await Product.aggregate([
-      { $match: { seller: sellerId } },
+    const periodMap = {
+      '7days': 7,
+      '30days': 30,
+      '90days': 90,
+      '1year': 365,
+    };
+
+    const rangeDays = periodMap[period] || 30;
+    const now = new Date();
+    const startDate = new Date(now);
+    startDate.setDate(startDate.getDate() - rangeDays);
+    const previousEnd = new Date(startDate);
+    const previousStart = new Date(startDate);
+    previousStart.setDate(previousStart.getDate() - rangeDays);
+
+    const statusFilter = { $nin: ['cancelled', 'refunded'] };
+
+    const buildMatch = (from, to) => {
+      const match = {
+        'orderItems.seller': sellerId,
+        status: statusFilter,
+      };
+
+      if (from || to) {
+        match.createdAt = {};
+        if (from) match.createdAt.$gte = from;
+        if (to) match.createdAt.$lt = to;
+      }
+
+      if (match.createdAt && !Object.keys(match.createdAt).length) {
+        delete match.createdAt;
+      }
+
+      return match;
+    };
+
+    const buildMetricsPipeline = (match) => [
+      { $match: match },
+      { $unwind: '$orderItems' },
+      { $match: { 'orderItems.seller': sellerId } },
+      {
+        $group: {
+          _id: '$_id',
+          orderRevenue: {
+            $sum: { $multiply: ['$orderItems.price', '$orderItems.quantity'] },
+          },
+          productsSold: { $sum: '$orderItems.quantity' },
+          customer: { $first: '$user' },
+        },
+      },
       {
         $group: {
           _id: null,
-          totalViews: { $sum: '$viewsCount' },
-          totalSold: { $sum: '$soldCount' },
-          avgRating: { $avg: '$ratingsAverage' },
+          totalRevenue: { $sum: '$orderRevenue' },
+          totalOrders: { $sum: 1 },
+          productsSold: { $sum: '$productsSold' },
+          customers: { $addToSet: '$customer' },
         },
       },
+      {
+        $project: {
+          _id: 0,
+          totalRevenue: { $ifNull: ['$totalRevenue', 0] },
+          totalOrders: { $ifNull: ['$totalOrders', 0] },
+          productsSold: { $ifNull: ['$productsSold', 0] },
+          uniqueCustomers: {
+            $size: { $ifNull: ['$customers', []] },
+          },
+        },
+      },
+    ];
+
+    const calculateChange = (current = 0, previous = 0) => {
+      if (!previous && !current) return 0;
+      if (!previous) return 100;
+      return Number((((current - previous) / previous) * 100).toFixed(1));
+    };
+
+    const [currentStatsRaw, previousStatsRaw, revenueTrend, topProducts] = await Promise.all([
+      Order.aggregate(buildMetricsPipeline(buildMatch(startDate, null))),
+      Order.aggregate(buildMetricsPipeline(buildMatch(previousStart, previousEnd))),
+      Order.aggregate([
+        { $match: buildMatch(startDate, null) },
+        { $unwind: '$orderItems' },
+        { $match: { 'orderItems.seller': sellerId } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            revenue: {
+              $sum: { $multiply: ['$orderItems.price', '$orderItems.quantity'] },
+            },
+            orderIds: { $addToSet: '$_id' },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            date: '$_id',
+            revenue: 1,
+            orders: { $size: '$orderIds' },
+          },
+        },
+        { $sort: { date: 1 } },
+      ]),
+      Order.aggregate([
+        { $match: buildMatch(startDate, null) },
+        { $unwind: '$orderItems' },
+        { $match: { 'orderItems.seller': sellerId } },
+        {
+          $group: {
+            _id: '$orderItems.product',
+            sales: { $sum: '$orderItems.quantity' },
+            revenue: {
+              $sum: { $multiply: ['$orderItems.price', '$orderItems.quantity'] },
+            },
+          },
+        },
+        { $sort: { revenue: -1 } },
+        { $limit: 10 },
+        {
+          $lookup: {
+            from: 'products',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'product',
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            name: {
+              $ifNull: [{ $arrayElemAt: ['$product.title', 0] }, 'Product'],
+            },
+            sales: 1,
+            revenue: 1,
+          },
+        },
+      ]),
     ]);
 
-    const topProducts = await Product.find({ seller: sellerId })
-      .sort({ soldCount: -1 })
-      .limit(10)
-      .select('title soldCount viewsCount ratingsAverage');
+    const currentStats = currentStatsRaw[0] || {
+      totalRevenue: 0,
+      totalOrders: 0,
+      productsSold: 0,
+      uniqueCustomers: 0,
+    };
+
+    const previousStats = previousStatsRaw[0] || {
+      totalRevenue: 0,
+      totalOrders: 0,
+      productsSold: 0,
+      uniqueCustomers: 0,
+    };
 
     res.json({
-      analytics: analytics[0] || {},
+      analytics: {
+        totalRevenue: currentStats.totalRevenue,
+        revenueChange: calculateChange(currentStats.totalRevenue, previousStats.totalRevenue),
+        totalOrders: currentStats.totalOrders,
+        ordersChange: calculateChange(currentStats.totalOrders, previousStats.totalOrders),
+        uniqueCustomers: currentStats.uniqueCustomers,
+        customersChange: calculateChange(currentStats.uniqueCustomers, previousStats.uniqueCustomers),
+        productsSold: currentStats.productsSold,
+        productsChange: calculateChange(currentStats.productsSold, previousStats.productsSold),
+      },
+      trend: revenueTrend,
       topProducts,
     });
   } catch (error) {
@@ -1466,6 +1614,7 @@ export const getSubscriptionStatus = async (req, res, next) => {
         assignedAt: planInfo.planAssignedAt,
         cycleStartedAt: planInfo.planCycleStartedAt,
         renewsAt: planInfo.planRenewsAt,
+        featureAccess: planInfo.featureAccess,
       },
       limits: planInfo.limits,
       usage: planInfo.usage,

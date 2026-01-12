@@ -14,17 +14,25 @@ import {
   FiFileText,
   FiCreditCard,
   FiShield,
+  FiLayers,
+  FiHeadphones,
 } from 'react-icons/fi';
 import styles from './SellerSidebar.module.css';
 import { setActiveMode, logoutUser } from '../../redux/slices/authSlice';
+import { hasFeatureAccess } from '../../utils/featureAccess';
 
 const SellerSidebar = ({ isOpen, onToggle }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user, activeMode } = useSelector((state) => state.auth);
+  const { subscriptionStatus } = useSelector((state) => state.seller);
 
   const isSeller = user?.role === 'seller' || user?.accountType === 'seller';
   const hasBuyerProfile = !!user?.hasBuyerProfile;
+  
+  const hasBulkOps = hasFeatureAccess(subscriptionStatus, 'bulkOperations');
+  const hasAdvancedAnalytics = hasFeatureAccess(subscriptionStatus, 'advancedAnalytics');
+  const hasPrioritySupport = hasFeatureAccess(subscriptionStatus, 'prioritySupport');
 
   const handleSwitchToBuyer = () => {
     if (!hasBuyerProfile) {
@@ -46,19 +54,32 @@ const SellerSidebar = ({ isOpen, onToggle }) => {
     </button>
   );
 
+  const productChildren = [
+    { path: '/seller/products', label: 'All Products' },
+    { path: '/seller/products/add', label: 'Add Product' },
+    { path: '/seller/products/categories', label: 'Categories' },
+    { path: '/seller/products/inventory', label: 'Inventory' },
+    { path: '/seller/products/bulk-upload', label: 'Bulk Upload' },
+  ];
+  
+  if (hasBulkOps) {
+    productChildren.push({ path: '/seller/products/bulk-operations', label: '⚡ Bulk Operations', premium: true });
+  }
+
+  const analyticsChildren = hasAdvancedAnalytics 
+    ? [
+        { path: '/seller/analytics', label: 'Overview' },
+        { path: '/seller/analytics/advanced', label: '⚡ Advanced Analytics', premium: true },
+      ]
+    : undefined;
+
   const navItems = [
     { path: '/seller', icon: FiHome, label: 'Dashboard', exact: true },
     {
       path: '/seller/products',
       icon: FiPackage,
       label: 'Products',
-      children: [
-        { path: '/seller/products', label: 'All Products' },
-        { path: '/seller/products/add', label: 'Add Product' },
-        { path: '/seller/products/categories', label: 'Categories' },
-        { path: '/seller/products/inventory', label: 'Inventory' },
-        { path: '/seller/products/bulk-upload', label: 'Bulk Upload' },
-      ],
+      children: productChildren,
     },
     {
       path: '/seller/orders',
@@ -92,7 +113,12 @@ const SellerSidebar = ({ isOpen, onToggle }) => {
     },
     { path: '/seller/verification', icon: FiShield, label: 'Verification' },
     { path: '/seller/reviews', icon: FiStar, label: 'Reviews' },
-    { path: '/seller/analytics', icon: FiTrendingUp, label: 'Analytics' },
+    {
+      path: '/seller/analytics',
+      icon: FiTrendingUp,
+      label: 'Analytics',
+      children: analyticsChildren,
+    },
     {
       path: '/seller/marketing',
       icon: FiTag,
@@ -106,6 +132,15 @@ const SellerSidebar = ({ isOpen, onToggle }) => {
     { path: '/seller/store', icon: FiGrid, label: 'My Store' },
     { path: '/seller/settings', icon: FiSettings, label: 'Settings' },
   ];
+  
+  if (hasPrioritySupport) {
+    navItems.splice(navItems.length - 2, 0, {
+      path: '/seller/support/priority',
+      icon: FiHeadphones,
+      label: '⚡ Priority Support',
+      premium: true,
+    });
+  }
 
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.open : styles.closed}`}>

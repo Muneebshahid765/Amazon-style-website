@@ -13,6 +13,27 @@ const limitSchema = new Schema(
   { _id: false, minimize: false }
 );
 
+const featureAccessSchema = new Schema(
+  {
+    bulkOperations: { type: Boolean, default: false },
+    advancedAnalytics: { type: Boolean, default: false },
+    prioritySupport: { type: Boolean, default: false },
+    customBranding: { type: Boolean, default: false },
+    apiAccess: { type: Boolean, default: false },
+    multipleStores: { type: Boolean, default: false },
+    advancedReporting: { type: Boolean, default: false },
+    inventoryForecasting: { type: Boolean, default: false },
+    automatedMarketing: { type: Boolean, default: false },
+    dedicatedAccountManager: { type: Boolean, default: false },
+    whitelabelOptions: { type: Boolean, default: false },
+    customIntegrations: { type: Boolean, default: false },
+    aiPoweredInsights: { type: Boolean, default: false },
+    unlimitedTeamMembers: { type: Boolean, default: false },
+    advancedSecurity: { type: Boolean, default: false },
+  },
+  { _id: false, minimize: false }
+);
+
 const discountSchema = new Schema(
   {
     isActive: { type: Boolean, default: false },
@@ -42,6 +63,7 @@ const subscriptionPlanSchema = new Schema(
     isDefault: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     limits: { type: limitSchema, default: () => ({}) },
+    featureAccess: { type: featureAccessSchema, default: () => ({}) },
     features: { type: [String], default: [] },
     badges: { type: [String], default: [] },
     highlightColor: { type: String, default: '#0ea5e9' },

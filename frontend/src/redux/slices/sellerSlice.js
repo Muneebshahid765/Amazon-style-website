@@ -634,8 +634,49 @@ const sellerSlice = createSlice({
         state.reviews = action.payload.reviews || action.payload;
       })
       // Analytics
+      .addCase(fetchProductAnalytics.pending, (state) => {
+        state.loading = true;
+      })
       .addCase(fetchProductAnalytics.fulfilled, (state, action) => {
+        state.loading = false;
         state.analytics = action.payload;
+      })
+      .addCase(fetchProductAnalytics.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Sales Report
+      .addCase(fetchSalesReport.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchSalesReport.fulfilled, (state, action) => {
+        state.loading = false;
+        state.salesReport = action.payload;
+      })
+      .addCase(fetchSalesReport.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Bulk Operations
+      .addCase(bulkUpdateStock.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(bulkUpdateStock.fulfilled, (state, action) => {
+        state.loading = false;
+      })
+      .addCase(bulkUpdateStock.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(bulkUpdatePrices.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(bulkUpdatePrices.fulfilled, (state, action) => {
+        state.loading = false;
+      })
+      .addCase(bulkUpdatePrices.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
       // Performance Metrics
       .addCase(fetchPerformanceMetrics.fulfilled, (state, action) => {
@@ -677,10 +718,6 @@ const sellerSlice = createSlice({
       })
       .addCase(updateVacationMode.fulfilled, (state, action) => {
         state.store = action.payload.store || action.payload;
-      })
-      // Reports
-      .addCase(fetchSalesReport.fulfilled, (state, action) => {
-        state.salesReport = action.payload;
       })
       .addCase(fetchInventoryReport.fulfilled, (state, action) => {
         state.inventoryReport = action.payload;

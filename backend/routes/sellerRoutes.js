@@ -1,5 +1,6 @@
 import express from 'express';
 import { protect, restrictTo } from '../middleware/auth.js';
+import { requireFeature } from '../middleware/featureAccess.js';
 import upload from '../config/multer.js';
 import * as sellerController from '../controllers/sellerController.js';
 
@@ -15,14 +16,14 @@ router.get('/dashboard/performance', sellerController.getPerformanceMetrics);
 
 // Products
 router.get('/products', sellerController.getProducts);
-router.get('/products/analytics', sellerController.getProductAnalytics);
+router.get('/products/analytics', requireFeature('advancedAnalytics'), sellerController.getProductAnalytics);
 router.get('/products/:id', sellerController.getProductById);
 router.post('/products', upload.array('images', 8), sellerController.createProduct);
 router.put('/products/:id', upload.array('images', 8), sellerController.updateProduct);
 router.delete('/products/:id', sellerController.deleteProduct);
 router.put('/products/:id/stock', sellerController.updateStock);
-router.post('/products/bulk/stock', sellerController.bulkUpdateStock);
-router.post('/products/bulk/prices', sellerController.bulkUpdatePrices);
+router.post('/products/bulk/stock', requireFeature('bulkOperations'), sellerController.bulkUpdateStock);
+router.post('/products/bulk/prices', requireFeature('bulkOperations'), sellerController.bulkUpdatePrices);
 
 // Categories
 router.get('/categories', sellerController.getCategories);
