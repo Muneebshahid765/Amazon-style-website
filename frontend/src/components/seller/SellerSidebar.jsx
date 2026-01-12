@@ -16,6 +16,12 @@ import {
   FiShield,
   FiLayers,
   FiHeadphones,
+  FiEdit3,
+  FiCode,
+  FiShoppingBag,
+  FiActivity,
+  FiMail,
+  FiUser,
 } from 'react-icons/fi';
 import styles from './SellerSidebar.module.css';
 import { setActiveMode, logoutUser } from '../../redux/slices/authSlice';
@@ -33,6 +39,18 @@ const SellerSidebar = ({ isOpen, onToggle }) => {
   const hasBulkOps = hasFeatureAccess(subscriptionStatus, 'bulkOperations');
   const hasAdvancedAnalytics = hasFeatureAccess(subscriptionStatus, 'advancedAnalytics');
   const hasPrioritySupport = hasFeatureAccess(subscriptionStatus, 'prioritySupport');
+  const hasCustomBranding = hasFeatureAccess(subscriptionStatus, 'customBranding');
+  const hasAPIAccess = hasFeatureAccess(subscriptionStatus, 'apiAccess');
+  const hasMultipleStores = hasFeatureAccess(subscriptionStatus, 'multipleStores');
+  const hasAdvancedReporting = hasFeatureAccess(subscriptionStatus, 'advancedReporting');
+  const hasInventoryForecasting = hasFeatureAccess(subscriptionStatus, 'inventoryForecasting');
+  const hasAutomatedMarketing = hasFeatureAccess(subscriptionStatus, 'automatedMarketing');
+  const hasDedicatedAccountManager = hasFeatureAccess(subscriptionStatus, 'dedicatedAccountManager');
+  const hasWhitelabelOptions = hasFeatureAccess(subscriptionStatus, 'whitelabelOptions');
+  const hasCustomIntegrations = hasFeatureAccess(subscriptionStatus, 'customIntegrations');
+  const hasAIPoweredInsights = hasFeatureAccess(subscriptionStatus, 'aiPoweredInsights');
+  const hasUnlimitedTeamMembers = hasFeatureAccess(subscriptionStatus, 'unlimitedTeamMembers');
+  const hasAdvancedSecurity = hasFeatureAccess(subscriptionStatus, 'advancedSecurity');
 
   const handleSwitchToBuyer = () => {
     if (!hasBuyerProfile) {
@@ -66,12 +84,17 @@ const SellerSidebar = ({ isOpen, onToggle }) => {
     productChildren.push({ path: '/seller/products/bulk-operations', label: '⚡ Bulk Operations', premium: true });
   }
 
-  const analyticsChildren = hasAdvancedAnalytics 
-    ? [
-        { path: '/seller/analytics', label: 'Overview' },
-        { path: '/seller/analytics/advanced', label: '⚡ Advanced Analytics', premium: true },
-      ]
-    : undefined;
+  const analyticsChildren = [];
+  analyticsChildren.push({ path: '/seller/analytics', label: 'Overview' });
+  if (hasAdvancedAnalytics) {
+    analyticsChildren.push({ path: '/seller/analytics/advanced', label: '⚡ Advanced Analytics', premium: true });
+  }
+  if (hasInventoryForecasting) {
+    analyticsChildren.push({ path: '/seller/analytics/forecasting', label: '⚡ Inventory Forecasting', premium: true });
+  }
+  if (hasAIPoweredInsights) {
+    analyticsChildren.push({ path: '/seller/analytics/ai-insights', label: '⚡ AI Insights', premium: true });
+  }
 
   const navItems = [
     { path: '/seller', icon: FiHome, label: 'Dashboard', exact: true },
@@ -109,6 +132,7 @@ const SellerSidebar = ({ isOpen, onToggle }) => {
       children: [
         { path: '/seller/reports', label: 'Sales Report' },
         { path: '/seller/reports/inventory', label: 'Inventory Report' },
+        ...(hasAdvancedReporting ? [{ path: '/seller/reports/advanced', label: '⚡ Advanced Reporting', premium: true }] : []),
       ],
     },
     { path: '/seller/verification', icon: FiShield, label: 'Verification' },
@@ -127,17 +151,87 @@ const SellerSidebar = ({ isOpen, onToggle }) => {
         { path: '/seller/marketing/promotions', label: 'Promotions' },
         { path: '/seller/marketing/discounts', label: 'Discounts' },
         { path: '/seller/marketing/coupons', label: 'Coupons' },
+        ...(hasAutomatedMarketing ? [{ path: '/seller/marketing/automated', label: '⚡ Automated Marketing', premium: true }] : []),
       ],
     },
     { path: '/seller/store', icon: FiGrid, label: 'My Store' },
     { path: '/seller/settings', icon: FiSettings, label: 'Settings' },
   ];
   
-  if (hasPrioritySupport) {
+  const brandingChildren = [];
+  if (hasCustomBranding) {
+    brandingChildren.push({ path: '/seller/branding', label: '⚡ Custom Branding', premium: true });
+  }
+  if (hasWhitelabelOptions) {
+    brandingChildren.push({ path: '/seller/branding/whitelabel', label: '⚡ White-label', premium: true });
+  }
+  
+  if (brandingChildren.length > 0) {
     navItems.splice(navItems.length - 2, 0, {
-      path: '/seller/support/priority',
+      path: '/seller/branding',
+      icon: FiEdit3,
+      label: 'Branding',
+      children: brandingChildren.length > 1 ? brandingChildren : undefined,
+    });
+  }
+  
+  if (hasMultipleStores) {
+    navItems.splice(navItems.length - 2, 0, {
+      path: '/seller/stores',
+      icon: FiShoppingBag,
+      label: '⚡ Multiple Stores',
+      premium: true,
+    });
+  }
+  
+  const integrationChildren = [];
+  if (hasAPIAccess) {
+    integrationChildren.push({ path: '/seller/integration/api', label: '⚡ API Access', premium: true });
+  }
+  if (hasCustomIntegrations) {
+    integrationChildren.push({ path: '/seller/integration/custom', label: '⚡ Custom Integrations', premium: true });
+  }
+  
+  if (integrationChildren.length > 0) {
+    navItems.splice(navItems.length - 2, 0, {
+      path: '/seller/integration',
+      icon: FiCode,
+      label: 'Integrations',
+      children: integrationChildren,
+    });
+  }
+  
+  const supportChildren = [];
+  if (hasPrioritySupport) {
+    supportChildren.push({ path: '/seller/support/priority', label: '⚡ Priority Support', premium: true });
+  }
+  if (hasDedicatedAccountManager) {
+    supportChildren.push({ path: '/seller/support/account-manager', label: '⚡ Account Manager', premium: true });
+  }
+  
+  if (supportChildren.length > 0) {
+    navItems.splice(navItems.length - 2, 0, {
+      path: '/seller/support',
       icon: FiHeadphones,
-      label: '⚡ Priority Support',
+      label: 'Support',
+      children: supportChildren,
+    });
+  }
+  
+  if (hasUnlimitedTeamMembers) {
+    navItems.splice(navItems.length - 2, 0, {
+      path: '/seller/team',
+      icon: FiUser,
+      label: '⚡ Team Members',
+      premium: true,
+    });
+  }
+  
+  if (hasAdvancedSecurity) {
+    navItems.splice(navItems.length - 2, 0, {
+      path: '/seller/security',
+      icon: FiShield,
+      label: '⚡ Security',
       premium: true,
     });
   }

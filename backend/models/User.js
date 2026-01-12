@@ -117,6 +117,12 @@ const userSchema = new Schema(
     googleId: { type: String, index: true, sparse: true },
     accountStatus: { type: String, enum: ['active', 'suspended', 'pending_verification'], default: 'active' },
     isActive: { type: Boolean, default: true },
+    apiKeys: [{
+      name: { type: String, default: 'API Key' },
+      key: { type: String, required: true },
+      createdAt: { type: Date, default: Date.now },
+      lastUsed: { type: Date },
+    }],
   },
   { timestamps: true }
 );

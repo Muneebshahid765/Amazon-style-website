@@ -46,6 +46,18 @@ import SellerSubscriptionUpgrade from './pages/seller/SubscriptionUpgrade.jsx';
 import BulkOperations from './pages/seller/products/BulkOperations.jsx';
 import AdvancedAnalytics from './pages/seller/analytics/AdvancedAnalytics.jsx';
 import PrioritySupport from './pages/seller/support/PrioritySupport.jsx';
+import CustomBranding from './pages/seller/branding/CustomBranding.jsx';
+import Whitelabel from './pages/seller/branding/Whitelabel.jsx';
+import APIAccess from './pages/seller/integration/APIAccess.jsx';
+import CustomIntegrations from './pages/seller/integration/CustomIntegrations.jsx';
+import MultipleStores from './pages/seller/stores/MultipleStores.jsx';
+import AdvancedReporting from './pages/seller/reports/AdvancedReporting.jsx';
+import InventoryForecasting from './pages/seller/analytics/InventoryForecasting.jsx';
+import AIInsights from './pages/seller/analytics/AIInsights.jsx';
+import AutomatedMarketing from './pages/seller/marketing/AutomatedMarketing.jsx';
+import DedicatedAccountManager from './pages/seller/support/DedicatedAccountManager.jsx';
+import TeamMembers from './pages/seller/team/TeamMembers.jsx';
+import AdvancedSecurity from './pages/seller/security/AdvancedSecurity.jsx';
 import UserDashboard from './pages/UserDashboard.jsx';
 import Wishlist from './pages/Wishlist.jsx';
 import Login from './pages/auth/Login.jsx';
@@ -148,7 +160,19 @@ function App() {
           <Route path="reviews" element={<SellerReviews />} />
           <Route path="analytics" element={<SellerAnalytics />} />
           <Route path="analytics/advanced" element={<AdvancedAnalytics />} />
+          <Route path="analytics/forecasting" element={<InventoryForecasting />} />
+          <Route path="analytics/ai-insights" element={<AIInsights />} />
           <Route path="support/priority" element={<PrioritySupport />} />
+          <Route path="support/account-manager" element={<DedicatedAccountManager />} />
+          <Route path="branding" element={<CustomBranding />} />
+          <Route path="branding/whitelabel" element={<Whitelabel />} />
+          <Route path="integration/api" element={<APIAccess />} />
+          <Route path="integration/custom" element={<CustomIntegrations />} />
+          <Route path="stores" element={<MultipleStores />} />
+          <Route path="reports/advanced" element={<AdvancedReporting />} />
+          <Route path="marketing/automated" element={<AutomatedMarketing />} />
+          <Route path="team" element={<TeamMembers />} />
+          <Route path="security" element={<AdvancedSecurity />} />
           <Route path="marketing/promotions" element={<SellerAnalytics />} />
           <Route path="marketing/discounts" element={<SellerAnalytics />} />
           <Route path="marketing/coupons" element={<SellerCoupons />} />

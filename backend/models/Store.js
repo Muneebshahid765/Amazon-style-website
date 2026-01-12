@@ -193,6 +193,33 @@ const storeSchema = new Schema(
       endDate: { type: Date },
       message: { type: String, maxlength: 500 },
     },
+    // Custom Branding
+    branding: {
+      primaryColor: { type: String, default: '#3b82f6' },
+      secondaryColor: { type: String, default: '#8b5cf6' },
+      accentColor: { type: String, default: '#10b981' },
+      fontFamily: { type: String, default: 'Inter' },
+    },
+    tagline: { type: String, trim: true, maxlength: 200 },
+    // Security Settings
+    securitySettings: {
+      twoFactorAuth: { type: Boolean, default: false },
+      ipWhitelist: { type: Boolean, default: false },
+      whitelistedIPs: [{ type: String }],
+      sessionTimeout: { type: Number, default: 30 },
+      passwordExpiry: { type: Number, default: 90 },
+      loginNotifications: { type: Boolean, default: true },
+    },
+    // Multiple Stores Support
+    isPrimary: { type: Boolean, default: true },
+    domain: { type: String, trim: true },
+    status: {
+      type: String,
+      enum: ['active', 'inactive', 'suspended'],
+      default: 'active',
+    },
+    // Available Balance for wallet payments
+    availableBalance: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true }
 );

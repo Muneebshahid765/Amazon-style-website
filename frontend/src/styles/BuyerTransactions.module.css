@@ -39,6 +39,59 @@
   color: #111827;
 }
 
+.chartsSection {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.chartCard {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+}
+
+.chartHeader {
+  margin-bottom: 1rem;
+}
+
+.chartHeader h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.chartContainer {
+  width: 100%;
+  min-height: 250px;
+}
+
+.emptyChart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 250px;
+  color: #9ca3af;
+}
+
+.emptyChart svg {
+  font-size: 48px;
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 900px) {
+  .chartsSection {
+    grid-template-columns: 1fr;
+  }
+}
+
 .filtersRow {
   display: flex;
   flex-wrap: wrap;

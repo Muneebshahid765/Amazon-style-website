@@ -235,6 +235,11 @@
   color: var(--text-secondary);
 }
 
+.chartContainer {
+  width: 100%;
+  min-height: 300px;
+}
+
 .topProductsList {
   display: flex;
   flex-direction: column;

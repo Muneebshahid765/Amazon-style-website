@@ -248,6 +248,19 @@ export const fetchProductAnalytics = createAsyncThunk(
   }
 );
 
+// AI Insights
+export const fetchAIInsights = createAsyncThunk(
+  'seller/fetchAIInsights',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/ai-insights');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch AI insights');
+    }
+  }
+);
+
 // Performance Metrics
 export const fetchPerformanceMetrics = createAsyncThunk(
   'seller/fetchPerformanceMetrics',
@@ -502,6 +515,342 @@ export const fetchSubscriptionStatus = createAsyncThunk(
   }
 );
 
+// Custom Branding
+export const fetchStoreBranding = createAsyncThunk(
+  'seller/fetchStoreBranding',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/branding');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch branding');
+    }
+  }
+);
+
+export const updateStoreBranding = createAsyncThunk(
+  'seller/updateStoreBranding',
+  async (formData, { rejectWithValue }) => {
+    try {
+      const response = await api.put('/seller/branding', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update branding');
+    }
+  }
+);
+
+// API Access
+export const fetchAPIKeys = createAsyncThunk(
+  'seller/fetchAPIKeys',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/api/keys');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch API keys');
+    }
+  }
+);
+
+export const generateAPIKey = createAsyncThunk(
+  'seller/generateAPIKey',
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/seller/api/keys/generate', data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to generate API key');
+    }
+  }
+);
+
+export const revokeAPIKey = createAsyncThunk(
+  'seller/revokeAPIKey',
+  async (keyId, { rejectWithValue }) => {
+    try {
+      await api.delete(`/seller/api/keys/${keyId}`);
+      return keyId;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to revoke API key');
+    }
+  }
+);
+
+// Multiple Stores
+export const fetchStores = createAsyncThunk(
+  'seller/fetchStores',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/stores');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch stores');
+    }
+  }
+);
+
+export const createStore = createAsyncThunk(
+  'seller/createStore',
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/seller/stores', data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to create store');
+    }
+  }
+);
+
+export const updateStoreById = createAsyncThunk(
+  'seller/updateStoreById',
+  async ({ storeId, ...data }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/seller/stores/${storeId}`, data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update store');
+    }
+  }
+);
+
+export const deleteStore = createAsyncThunk(
+  'seller/deleteStore',
+  async (storeId, { rejectWithValue }) => {
+    try {
+      await api.delete(`/seller/stores/${storeId}`);
+      return storeId;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete store');
+    }
+  }
+);
+
+// Advanced Reporting
+export const fetchAdvancedReport = createAsyncThunk(
+  'seller/fetchAdvancedReport',
+  async (params, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/reports/advanced', { params });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch report');
+    }
+  }
+);
+
+// Inventory Forecasting
+export const fetchInventoryForecast = createAsyncThunk(
+  'seller/fetchInventoryForecast',
+  async (params, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/inventory/forecasting', { params });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch forecast');
+    }
+  }
+);
+
+// Automated Marketing
+export const fetchMarketingCampaigns = createAsyncThunk(
+  'seller/fetchMarketingCampaigns',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/marketing/campaigns');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch campaigns');
+    }
+  }
+);
+
+export const createCampaign = createAsyncThunk(
+  'seller/createCampaign',
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/seller/marketing/campaigns', data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to create campaign');
+    }
+  }
+);
+
+// Account Manager
+export const fetchAccountManager = createAsyncThunk(
+  'seller/fetchAccountManager',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/account-manager');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch account manager');
+    }
+  }
+);
+
+export const sendMessageToManager = createAsyncThunk(
+  'seller/sendMessageToManager',
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/seller/account-manager/message', data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to send message');
+    }
+  }
+);
+
+// Team Members
+export const fetchTeamMembers = createAsyncThunk(
+  'seller/fetchTeamMembers',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/team');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch team members');
+    }
+  }
+);
+
+export const inviteTeamMember = createAsyncThunk(
+  'seller/inviteTeamMember',
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/seller/team/invite', data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to invite team member');
+    }
+  }
+);
+
+export const updateTeamMember = createAsyncThunk(
+  'seller/updateTeamMember',
+  async ({ memberId, ...data }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/seller/team/${memberId}`, data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update team member');
+    }
+  }
+);
+
+export const removeTeamMember = createAsyncThunk(
+  'seller/removeTeamMember',
+  async (memberId, { rejectWithValue }) => {
+    try {
+      await api.delete(`/seller/team/${memberId}`);
+      return memberId;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to remove team member');
+    }
+  }
+);
+
+// Security
+export const fetchSecuritySettings = createAsyncThunk(
+  'seller/fetchSecuritySettings',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/security/settings');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch security settings');
+    }
+  }
+);
+
+export const updateSecuritySettings = createAsyncThunk(
+  'seller/updateSecuritySettings',
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await api.put('/seller/security/settings', data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update security settings');
+    }
+  }
+);
+
+export const fetchSecurityLogs = createAsyncThunk(
+  'seller/fetchSecurityLogs',
+  async (params, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/security/logs', { params });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch security logs');
+    }
+  }
+);
+
+// Integrations
+export const fetchIntegrations = createAsyncThunk(
+  'seller/fetchIntegrations',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/seller/integrations');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch integrations');
+    }
+  }
+);
+
+export const createIntegration = createAsyncThunk(
+  'seller/createIntegration',
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/seller/integrations', data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to create integration');
+    }
+  }
+);
+
+export const updateIntegration = createAsyncThunk(
+  'seller/updateIntegration',
+  async ({ integrationId, ...data }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/seller/integrations/${integrationId}`, data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update integration');
+    }
+  }
+);
+
+export const deleteIntegration = createAsyncThunk(
+  'seller/deleteIntegration',
+  async (integrationId, { rejectWithValue }) => {
+    try {
+      await api.delete(`/seller/integrations/${integrationId}`);
+      return integrationId;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete integration');
+    }
+  }
+);
+
+export const requestCustomIntegration = createAsyncThunk(
+  'seller/requestCustomIntegration',
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/seller/integrations/request', data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to request integration');
+    }
+  }
+);
+
 const initialState = {
   dashboardStats: null,
   salesOverview: null,
@@ -537,6 +886,28 @@ const initialState = {
   couponsError: null,
   subscriptionStatus: null,
   subscriptionLoading: false,
+  branding: null,
+  apiKeys: [],
+  stores: [],
+  advancedReport: null,
+  inventoryForecast: [],
+  inventoryForecastSummary: null,
+  marketingCampaigns: [],
+  marketingStats: null,
+  aiInsights: null,
+  accountManager: null,
+  accountManagerInteractions: [],
+  // Team Members
+  teamMembers: [],
+  teamStats: null,
+  teamLoading: false,
+  // Security
+  securitySettings: null,
+  securityLogs: [],
+  securityLoading: false,
+  // Integrations
+  integrations: [],
+  integrationsLoading: false,
   loading: false,
   detailsLoading: false,
   orderDetailLoading: false,
@@ -804,6 +1175,139 @@ const sellerSlice = createSlice({
       .addCase(fetchSubscriptionStatus.rejected, (state, action) => {
         state.subscriptionLoading = false;
         state.error = action.payload;
+      })
+      // Custom Branding
+      .addCase(fetchStoreBranding.fulfilled, (state, action) => {
+        state.branding = action.payload.branding;
+      })
+      .addCase(updateStoreBranding.fulfilled, (state, action) => {
+        state.branding = action.payload.store;
+      })
+      // API Access
+      .addCase(fetchAPIKeys.fulfilled, (state, action) => {
+        state.apiKeys = action.payload.apiKeys;
+      })
+      .addCase(generateAPIKey.fulfilled, (state, action) => {
+        state.apiKeys.push(action.payload);
+      })
+      .addCase(revokeAPIKey.fulfilled, (state, action) => {
+        state.apiKeys = state.apiKeys.filter(key => key.id !== action.payload);
+      })
+      // Multiple Stores
+      .addCase(fetchStores.fulfilled, (state, action) => {
+        state.stores = action.payload.stores;
+      })
+      .addCase(createStore.fulfilled, (state, action) => {
+        state.stores.push(action.payload.store);
+      })
+      .addCase(deleteStore.fulfilled, (state, action) => {
+        state.stores = state.stores.filter(store => store.id !== action.payload);
+      })
+      // Advanced Reporting
+      .addCase(fetchAdvancedReport.fulfilled, (state, action) => {
+        state.advancedReport = action.payload.report;
+      })
+      // Inventory Forecasting
+      .addCase(fetchInventoryForecast.fulfilled, (state, action) => {
+        state.inventoryForecast = action.payload.forecasts;
+        state.inventoryForecastSummary = action.payload.summary;
+      })
+      // Marketing Campaigns
+      .addCase(fetchMarketingCampaigns.fulfilled, (state, action) => {
+        state.marketingCampaigns = action.payload.campaigns;
+        state.marketingStats = action.payload.stats;
+      })
+      // AI Insights
+      .addCase(fetchAIInsights.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchAIInsights.fulfilled, (state, action) => {
+        state.loading = false;
+        state.aiInsights = action.payload;
+      })
+      .addCase(fetchAIInsights.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(createCampaign.fulfilled, (state, action) => {
+        state.marketingCampaigns.push(action.payload.campaign);
+      })
+      // Account Manager
+      .addCase(fetchAccountManager.fulfilled, (state, action) => {
+        state.accountManager = action.payload.manager;
+        state.accountManagerInteractions = action.payload.interactions || [];
+      })
+      // Team Members
+      .addCase(fetchTeamMembers.pending, (state) => {
+        state.teamLoading = true;
+      })
+      .addCase(fetchTeamMembers.fulfilled, (state, action) => {
+        state.teamLoading = false;
+        state.teamMembers = action.payload.members || [];
+        state.teamStats = action.payload.stats;
+      })
+      .addCase(fetchTeamMembers.rejected, (state, action) => {
+        state.teamLoading = false;
+        state.error = action.payload;
+      })
+      .addCase(inviteTeamMember.fulfilled, (state, action) => {
+        state.teamMembers.unshift(action.payload.member);
+        if (state.teamStats) state.teamStats.total += 1;
+      })
+      .addCase(updateTeamMember.fulfilled, (state, action) => {
+        const updated = action.payload.member;
+        state.teamMembers = state.teamMembers.map((m) => 
+          m._id === updated._id ? updated : m
+        );
+      })
+      .addCase(removeTeamMember.fulfilled, (state, action) => {
+        state.teamMembers = state.teamMembers.filter((m) => m._id !== action.payload);
+        if (state.teamStats) state.teamStats.total = Math.max(0, state.teamStats.total - 1);
+      })
+      // Security
+      .addCase(fetchSecuritySettings.pending, (state) => {
+        state.securityLoading = true;
+      })
+      .addCase(fetchSecuritySettings.fulfilled, (state, action) => {
+        state.securityLoading = false;
+        state.securitySettings = action.payload.settings;
+      })
+      .addCase(fetchSecuritySettings.rejected, (state, action) => {
+        state.securityLoading = false;
+        state.error = action.payload;
+      })
+      .addCase(updateSecuritySettings.fulfilled, (state, action) => {
+        state.securitySettings = action.payload.settings;
+      })
+      .addCase(fetchSecurityLogs.fulfilled, (state, action) => {
+        state.securityLogs = action.payload.logs || [];
+      })
+      // Integrations
+      .addCase(fetchIntegrations.pending, (state) => {
+        state.integrationsLoading = true;
+      })
+      .addCase(fetchIntegrations.fulfilled, (state, action) => {
+        state.integrationsLoading = false;
+        state.integrations = action.payload.integrations || [];
+      })
+      .addCase(fetchIntegrations.rejected, (state, action) => {
+        state.integrationsLoading = false;
+        state.error = action.payload;
+      })
+      .addCase(createIntegration.fulfilled, (state, action) => {
+        state.integrations.unshift(action.payload.integration);
+      })
+      .addCase(updateIntegration.fulfilled, (state, action) => {
+        const updated = action.payload.integration;
+        state.integrations = state.integrations.map((i) => 
+          i._id === updated._id ? updated : i
+        );
+      })
+      .addCase(deleteIntegration.fulfilled, (state, action) => {
+        state.integrations = state.integrations.filter((i) => i._id !== action.payload);
+      })
+      .addCase(requestCustomIntegration.fulfilled, (state, action) => {
+        state.integrations.unshift(action.payload.integration);
       });
   },
 });
